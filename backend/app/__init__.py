@@ -9,7 +9,7 @@ migrate = Migrate()
 
 def create_app(config_name='default'):
     """应用工厂函数"""
-    from backend.config import config
+    from config import config
 
     app = Flask(__name__)
     app.config.from_object(config[config_name])
@@ -22,11 +22,14 @@ def create_app(config_name='default'):
     CORS(app)
 
     # 注册蓝图
-    from backend.app.api import api_bp
+    from .api import api_bp
     app.register_blueprint(api_bp, url_prefix='/api')
 
     @app.route('/health')
     def health_check():
         return {'status': 'ok'}
 
-    return app 
+    return app
+
+# 确保导出这些变量
+__all__ = ['db', 'migrate', 'create_app'] 

@@ -1,6 +1,14 @@
 import os
-from backend.app import create_app, db
-from backend.app.models import User, Course, Activity
+import sys
+from pathlib import Path
+
+# 获取当前文件所在的目录
+basedir = os.path.abspath(os.path.dirname(__file__))
+# 将 backend 目录添加到 Python 路径
+sys.path.insert(0, basedir)
+
+from app import create_app, db, migrate
+from app.models import User, Course, Activity
 
 app = create_app(os.getenv('FLASK_ENV', 'development'))
 
@@ -9,6 +17,7 @@ def make_shell_context():
     """为Flask shell注入上下文"""
     return {
         'db': db,
+        'migrate': migrate,
         'User': User,
         'Course': Course,
         'Activity': Activity

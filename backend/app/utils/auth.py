@@ -1,6 +1,6 @@
 from functools import wraps
 from flask import request, jsonify
-from backend.app.models import User
+from ..models import User
 
 def authenticate(f):
     """身份验证装饰器（示例）"""

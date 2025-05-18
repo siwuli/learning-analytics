@@ -1,7 +1,7 @@
 from flask import jsonify, request
-from backend.app.api import api_bp
-from backend.app.models import Activity, User, Course
-from backend.app import db
+from . import api_bp
+from ..models import Activity, User, Course
+from .. import db
 from sqlalchemy import func, and_
 from datetime import datetime, timedelta
 

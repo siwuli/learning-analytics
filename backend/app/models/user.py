@@ -1,5 +1,5 @@
 from datetime import datetime
-from backend.app import db
+from .. import db
 
 class User(db.Model):
     """用户模型"""

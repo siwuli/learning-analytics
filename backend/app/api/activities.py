@@ -1,7 +1,7 @@
 from flask import jsonify, request
-from backend.app.api import api_bp
-from backend.app.models import Activity, User, Course
-from backend.app import db
+from . import api_bp
+from ..models import Activity, User, Course
+from .. import db
 
 @api_bp.route('/activities', methods=['GET'])
 def get_activities():
@@ -70,7 +70,7 @@ def create_activity():
         duration=data.get('duration'),
         score=data.get('score'),
         completed=data.get('completed', False),
-        metadata=data.get('metadata', {})
+        data_json=data.get('metadata', {})
     )
     
     db.session.add(new_activity)
@@ -96,9 +96,9 @@ def update_activity(activity_id):
         activity.completed = data['completed']
     if 'metadata' in data:
         # 合并现有元数据和新元数据
-        current_metadata = activity.metadata or {}
+        current_metadata = activity.data_json or {}
         current_metadata.update(data['metadata'])
-        activity.metadata = current_metadata
+        activity.data_json = current_metadata
     
     db.session.commit()
     

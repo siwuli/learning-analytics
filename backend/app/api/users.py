@@ -1,7 +1,7 @@
 from flask import jsonify, request
-from backend.app.api import api_bp
-from backend.app.models import User
-from backend.app import db
+from . import api_bp
+from ..models import User
+from .. import db
 
 @api_bp.route('/users', methods=['GET'])
 def get_users():
