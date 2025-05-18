@@ -13,6 +13,7 @@ learning-analytics/
 │   │   ├── services/         # 业务逻辑
 │   │   └── utils/            # 工具函数
 │   ├── config.py             # 配置文件
+│   ├── migrations/           # 数据库迁移文件
 │   ├── requirements.txt      # Python依赖
 │   └── run.py                # 启动脚本
 └── frontend/                 # Vue.js前端
@@ -50,14 +51,14 @@ pip install -r requirements.txt
 
 3. 初始化数据库
 ```
-flask db init
-flask db migrate
-flask db upgrade
+flask --app run db init
+flask --app run db migrate -m "初始化数据库"
+flask --app run db upgrade
 ```
 
 4. 运行开发服务器
 ```
-python run.py
+flask --app run run --debug
 ```
 
 ### 前端
@@ -77,14 +78,48 @@ npm install
 npm run serve
 ```
 
+## API端点
+
+后端提供了以下主要API端点：
+
+### 用户API
+- GET /api/users - 获取所有用户
+- GET /api/users/{id} - 获取单个用户
+- POST /api/users - 创建用户
+- PUT /api/users/{id} - 更新用户
+- DELETE /api/users/{id} - 删除用户
+
+### 课程API
+- GET /api/courses - 获取所有课程
+- GET /api/courses/{id} - 获取单个课程
+- POST /api/courses - 创建课程
+- PUT /api/courses/{id} - 更新课程
+- DELETE /api/courses/{id} - 删除课程
+- POST /api/courses/{id}/enroll/{user_id} - 将学生加入课程
+- GET /api/courses/{id}/students - 获取课程的所有学生
+
+### 活动API
+- GET /api/activities - 获取活动记录
+- GET /api/activities/{id} - 获取单个活动记录
+- POST /api/activities - 创建活动记录
+- PUT /api/activities/{id} - 更新活动记录
+- DELETE /api/activities/{id} - 删除活动记录
+- GET /api/users/{id}/activities - 获取用户的所有活动记录
+- GET /api/courses/{id}/activities - 获取课程的所有活动记录
+
+### 分析API
+- GET /api/analytics/user/{id} - 获取用户的学习分析数据
+- GET /api/analytics/course/{id} - 获取课程的分析数据
+- GET /api/analytics/overview - 获取系统整体分析概览
+
 ## 技术栈
 
 ### 后端
 - Python 3.8+
 - Flask - Web框架
 - SQLAlchemy - ORM
-- Flask-RESTful - RESTful API开发
 - Flask-Migrate - 数据库迁移
+- Flask-CORS - 跨域资源共享
 
 ### 前端
 - Vue.js 3 - 前端框架
@@ -92,6 +127,18 @@ npm run serve
 - Vue Router - 路由管理
 - Element Plus - UI组件库
 - Chart.js - 数据可视化
+
+## 开发指南
+
+### 添加新模型
+1. 在 `backend/app/models/` 目录下创建新的模型文件
+2. 在 `backend/app/models/__init__.py` 中导入新模型
+3. 运行 `flask --app run db migrate -m "添加新模型"` 创建迁移
+4. 运行 `flask --app run db upgrade` 应用迁移
+
+### 添加新API
+1. 在 `backend/app/api/` 目录下创建新的API文件或在现有文件中添加路由
+2. 在 `backend/app/api/__init__.py` 中导入新API模块
 
 ## 贡献
 
