@@ -1,0 +1,90 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import store from '../store'
+
+// 懒加载视图组件
+const Dashboard = () => import('../views/Dashboard.vue')
+const Login = () => import('../views/Login.vue')
+const Register = () => import('../views/Register.vue')
+const Courses = () => import('../views/Courses.vue')
+const CourseDetail = () => import('../views/CourseDetail.vue')
+const Analytics = () => import('../views/Analytics.vue')
+const Profile = () => import('../views/Profile.vue')
+const NotFound = () => import('../views/NotFound.vue')
+
+const routes = [
+  {
+    path: '/',
+    redirect: '/dashboard'
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: Login,
+    meta: { requiresAuth: false }
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: Register,
+    meta: { requiresAuth: false }
+  },
+  {
+    path: '/dashboard',
+    name: 'Dashboard',
+    component: Dashboard,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/courses',
+    name: 'Courses',
+    component: Courses,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/courses/:id',
+    name: 'CourseDetail',
+    component: CourseDetail,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/analytics',
+    name: 'Analytics',
+    component: Analytics,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/profile',
+    name: 'Profile',
+    component: Profile,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: NotFound
+  }
+]
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes
+})
+
+// 导航守卫
+router.beforeEach((to, from, next) => {
+  const isLoggedIn = store.getters['auth/isLoggedIn']
+
+  // 如果路由需要认证但用户未登录，重定向到登录页面
+  if (to.matched.some(record => record.meta.requiresAuth) && !isLoggedIn) {
+    next({ name: 'Login' })
+  } 
+  // 如果用户已登录且尝试访问登录/注册页面，重定向到仪表板
+  else if (isLoggedIn && (to.name === 'Login' || to.name === 'Register')) {
+    next({ name: 'Dashboard' })
+  }
+  else {
+    next()
+  }
+})
+
+export default router
