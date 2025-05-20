@@ -31,37 +31,37 @@ def upload_file():
             'status': 'error',
             'message': '没有选择文件'
         }), 400
+    
+    if file and allowed_file(file.filename):
+        # 安全处理文件名
+        filename = secure_filename(file.filename)
+        # 添加唯一标识，避免文件名冲突
+        unique_filename = f"{uuid.uuid4().hex}_{filename}"
         
-    # 检查文件类型
-    if not allowed_file(file.filename):
+        # 确保上传目录存在
+        upload_dir = os.path.join(current_app.root_path, 'static/uploads')
+        if not os.path.exists(upload_dir):
+            os.makedirs(upload_dir, exist_ok=True)
+        
+        # 保存文件
+        file_path = os.path.join(upload_dir, unique_filename)
+        file.save(file_path)
+        
+        # 构建URL
+        file_url = url_for('static', filename=f'uploads/{unique_filename}', _external=True)
+        
+        return jsonify({
+            'status': 'success',
+            'message': '文件上传成功',
+            'file_path': f'static/uploads/{unique_filename}',
+            'file_url': file_url,
+            'original_filename': filename
+        })
+    else:
         return jsonify({
             'status': 'error',
-            'message': '不支持的文件类型'
+            'message': '不允许的文件类型'
         }), 400
-        
-    # 安全处理文件名
-    original_filename = secure_filename(file.filename)
-    # 使用UUID生成唯一文件名，保留原始扩展名
-    filename = f"{uuid.uuid4().hex}_{original_filename}"
-    
-    # 确保上传目录存在
-    upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
-    os.makedirs(upload_folder, exist_ok=True)
-    
-    # 保存文件
-    file_path = os.path.join(upload_folder, filename)
-    file.save(file_path)
-    
-    # 生成文件URL
-    file_url = url_for('static', filename=f'uploads/{filename}', _external=True)
-    
-    return jsonify({
-        'status': 'success',
-        'message': '文件上传成功',
-        'file_path': f'uploads/{filename}',
-        'file_url': file_url,
-        'original_filename': original_filename
-    })
 
 @api_bp.route('/courses/<int:course_id>/sections', methods=['GET'])
 def get_course_sections(course_id):

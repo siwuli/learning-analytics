@@ -90,6 +90,31 @@ const mutations = {
   },
   SET_ERROR(state, error) {
     state.error = error;
+  },
+  updateCourseProgress(state, { courseId, progress }) {
+    console.log(`开始更新课程${courseId}的进度为${progress}`);
+    
+    if (state.currentCourse && state.currentCourse.id === parseInt(courseId)) {
+      console.log('找到当前课程，更新进度');
+      state.currentCourse = {
+        ...state.currentCourse,
+        progress: progress
+      };
+      console.log('更新后的当前课程:', state.currentCourse);
+    }
+    
+    // 同时更新课程列表中的课程进度
+    const courseIndex = state.allCourses.findIndex(c => c.id === parseInt(courseId));
+    if (courseIndex !== -1) {
+      console.log(`找到课程列表中的课程，索引:${courseIndex}，更新进度`);
+      state.allCourses[courseIndex] = {
+        ...state.allCourses[courseIndex],
+        progress: progress
+      };
+      console.log('更新后的课程列表项:', state.allCourses[courseIndex]);
+    } else {
+      console.warn(`在课程列表中未找到ID为${courseId}的课程`);
+    }
   }
 };
 

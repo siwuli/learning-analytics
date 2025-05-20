@@ -228,8 +228,9 @@
             <el-form-item label="上传文件">
               <el-upload
                 class="submission-upload"
-                action=""
+                action="#"
                 :auto-upload="false"
+                :http-request="() => {}"
                 :on-change="handleFileChange"
                 :on-remove="handleFileRemove"
                 :file-list="fileList"
@@ -259,6 +260,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Document } from '@element-plus/icons-vue'
 import { courseAPI } from '@/services/api'
 import { useStore } from 'vuex'
+import { fileAPI } from '@/services/api'
+import axios from 'axios'
 
 export default {
   name: 'AssignmentViewer',
@@ -364,10 +367,76 @@ export default {
     }
     
     // 处理文件变化
-    const handleFileChange = (file) => {
-      submissionForm.files.push(file.raw)
-      console.log('已添加文件:', file.name)
-    }
+    const handleFileChange = async (file) => {
+      try {
+        // 检查文件类型和大小
+        const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 
+                              'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                              'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                              'text/plain', 'image/jpeg', 'image/png', 'application/zip', 'application/x-rar-compressed'];
+        
+        if (file.raw && file.raw.size > 50 * 1024 * 1024) { // 50MB限制
+          ElMessage.error('文件过大，请上传小于50MB的文件');
+          // 从上传列表中移除
+          const index = fileList.value.findIndex(f => f.uid === file.uid);
+          if (index !== -1) {
+            fileList.value.splice(index, 1);
+          }
+          return;
+        }
+        
+        // 显示文件上传中
+        const loadingMessage = ElMessage({
+          message: `正在上传文件: ${file.name}`,
+          type: 'info',
+          duration: 0
+        });
+        
+        // 创建FormData
+        const formData = new FormData();
+        formData.append('file', file.raw);
+        
+        // 直接使用axios上传文件
+        const response = await axios.post('/upload', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        
+        // 关闭上传提示
+        loadingMessage.close();
+        
+        if (response.data && response.data.status === 'success') {
+          // 将上传成功的文件信息添加到提交列表
+          submissionForm.files.push({
+            name: response.data.original_filename,
+            size: file.raw.size,
+            type: file.raw.type,
+            url: response.data.file_url,
+            file_path: response.data.file_path
+          });
+          
+          ElMessage.success(`文件 ${file.name} 上传成功`);
+        } else {
+          ElMessage.error(`文件 ${file.name} 上传失败: ${response.data?.message || '未知错误'}`);
+          
+          // 从上传列表中移除
+          const index = fileList.value.findIndex(f => f.uid === file.uid);
+          if (index !== -1) {
+            fileList.value.splice(index, 1);
+          }
+        }
+      } catch (error) {
+        ElMessage.error(`文件 ${file.name} 上传失败: ${error.message || '未知错误'}`);
+        console.error('文件上传出错:', error);
+        
+        // 从上传列表中移除
+        const index = fileList.value.findIndex(f => f.uid === file.uid);
+        if (index !== -1) {
+          fileList.value.splice(index, 1);
+        }
+      }
+    };
     
     // 处理文件移除
     const handleFileRemove = (file) => {
@@ -380,14 +449,80 @@ export default {
     
     // 下载附件
     const downloadAttachment = (attachment) => {
-      // TODO: 实现附件下载逻辑
-      ElMessage.success(`开始下载附件: ${attachment.name}`)
+      if (!attachment || !attachment.url) {
+        // 检查是否有附件URL
+        if (attachment && attachment.name) {
+          // 如果有附件名但没有URL，可能是模拟数据
+          // 构造可能的URL路径
+          const baseUrl = window.location.origin;
+          const possibleUrl = `${baseUrl}/api/static/uploads/${attachment.name}`;
+          
+          // 创建下载链接
+          const link = document.createElement('a');
+          link.href = possibleUrl;
+          link.target = '_blank';
+          link.download = attachment.name;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          ElMessage.success(`开始下载附件: ${attachment.name}`);
+          return;
+        }
+        
+        ElMessage.error('附件链接不可用');
+        return;
+      }
+      
+      // 正常情况下有附件URL
+      const link = document.createElement('a');
+      link.href = attachment.url;
+      link.target = '_blank';
+      link.download = attachment.name || '未命名附件';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      ElMessage.success(`开始下载附件: ${attachment.name}`);
     }
     
     // 下载学生提交的文件
     const downloadFile = (file) => {
-      // TODO: 实现文件下载逻辑
-      ElMessage.success(`开始下载文件: ${file.name}`)
+      if (!file || !file.url) {
+        // 检查是否有文件URL
+        if (file && file.name) {
+          // 如果有文件名但没有URL，可能是模拟数据
+          // 构造可能的URL路径
+          const baseUrl = window.location.origin;
+          const possibleUrl = `${baseUrl}/api/static/uploads/${file.name}`;
+          
+          // 创建下载链接
+          const link = document.createElement('a');
+          link.href = possibleUrl;
+          link.target = '_blank';
+          link.download = file.name;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          ElMessage.success(`开始下载文件: ${file.name}`);
+          return;
+        }
+        
+        ElMessage.error('文件链接不可用');
+        return;
+      }
+      
+      // 正常情况下有文件URL
+      const link = document.createElement('a');
+      link.href = file.url;
+      link.target = '_blank';
+      link.download = file.name || '未命名文件';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      ElMessage.success(`开始下载文件: ${file.name}`);
     }
     
     // 启用编辑模式
@@ -452,10 +587,14 @@ export default {
             isEditing.value = false
             ElMessage.success('作业提交成功')
             
+            // 更新本地作业状态
+            const updatedAssignment = { ...props.assignment, status: 'completed' }
+            
             // 通知父组件
             emit('updated', {
               assignmentId: props.assignment.id,
-              status: 'completed'
+              status: 'completed',
+              assignment: updatedAssignment
             })
           }
         } catch (apiError) {
@@ -478,10 +617,14 @@ export default {
           isEditing.value = false
           ElMessage.success('作业提交成功(模拟)')
           
+          // 更新本地作业状态
+          const updatedAssignment = { ...props.assignment, status: 'completed' }
+          
           // 通知父组件
           emit('updated', {
             assignmentId: props.assignment.id,
-            status: 'completed'
+            status: 'completed',
+            assignment: updatedAssignment
           })
         }
       } catch (error) {

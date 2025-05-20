@@ -16,6 +16,20 @@
           </span>
         </div>
         <p class="course-description">{{ currentCourse.description }}</p>
+        
+        <!-- 课程总进度 -->
+        <div v-if="!isTeacher" class="course-progress">
+          <div class="progress-header">
+            <h3>课程进度</h3>
+            <span class="progress-percent">{{ Math.round(courseProgress) }}%</span>
+          </div>
+          <el-progress 
+            :percentage="courseProgress" 
+            :stroke-width="15" 
+            :format="() => ''"
+            :status="courseProgress === 100 ? 'success' : ''"
+          ></el-progress>
+        </div>
       </div>
       
       <el-card v-if="!loading">
@@ -456,6 +470,30 @@ export default {
     // 获取课程学生
     const courseStudents = computed(() => store.state.courses.courseStudents)
     
+    // 计算课程总进度
+    const courseProgress = computed(() => {
+      console.log('计算课程进度，当前课程:', currentCourse.value);
+      
+      if (currentCourse.value) {
+        console.log('课程进度属性值:', currentCourse.value.progress);
+        
+        // 确保进度值为数字且在0-100范围内
+        if (currentCourse.value.progress !== undefined && currentCourse.value.progress !== null) {
+          const progressValue = Number(currentCourse.value.progress);
+          
+          if (!isNaN(progressValue)) {
+            console.log('有效的进度值:', progressValue);
+            return Math.max(0, Math.min(100, progressValue)); // 确保在0-100范围内
+          }
+        }
+        console.warn('课程进度无效，使用默认值0');
+      } else {
+        console.warn('当前课程对象为空，无法获取进度');
+      }
+      
+      return 0; // 默认值
+    })
+    
     // 判断当前用户是否为教师
     const isTeacher = computed(() => {
       const user = store.state.auth.user
@@ -497,6 +535,46 @@ export default {
         
         // 加载课程详情
         await store.dispatch('courses/fetchCourse', courseId.value);
+        
+        // 获取用户ID和课程进度
+        const userId = store.state.auth.user?.id;
+        if (userId) {
+          try {
+            // 获取课程总进度
+            console.log(`开始获取用户${userId}的课程${courseId.value}进度...`);
+            const progressResponse = await courseAPI.getCourseProgress(userId, courseId.value);
+            console.log('课程进度API响应:', progressResponse.data);
+            
+            if (progressResponse.data && progressResponse.data.status === 'success' && progressResponse.data.progress) {
+              // 打印进度数据
+              console.log('获取到的进度数据:', progressResponse.data.progress);
+              console.log('进度百分比:', progressResponse.data.progress.progress_percent);
+              
+              // 更新课程对象中的进度信息
+              store.commit('courses/updateCourseProgress', {
+                courseId: courseId.value,
+                progress: progressResponse.data.progress.progress_percent
+              });
+              
+              // 确认更新后的状态
+              console.log('更新后的课程进度:', store.state.courses.currentCourse.progress);
+            } else {
+              // 如果没有进度记录，设置为0
+              console.warn('未获取到有效的进度数据，设置默认进度为0');
+              store.commit('courses/updateCourseProgress', {
+                courseId: courseId.value,
+                progress: 0
+              });
+            }
+          } catch (progressError) {
+            console.warn('无法获取课程进度:', progressError);
+            // 设置默认进度为0
+            store.commit('courses/updateCourseProgress', {
+              courseId: courseId.value,
+              progress: 0
+            });
+          }
+        }
         
         // 加载课程章节
         const sectionsResponse = await courseAPI.getCourseSections(courseId.value);
@@ -580,7 +658,9 @@ export default {
         try {
           // 使用API获取课程作业数据
           try {
-            const assignmentsResponse = await courseAPI.getCourseAssignments(courseId.value);
+            // 传入当前用户ID，以获取针对该用户的作业状态
+            const userId = store.state.auth.user?.id;
+            const assignmentsResponse = await courseAPI.getCourseAssignments(courseId.value, userId);
             if (assignmentsResponse.data && assignmentsResponse.data.assignments) {
               assignments.value = assignmentsResponse.data.assignments;
             } else {
@@ -1133,7 +1213,20 @@ export default {
     // 处理作业状态更新
     const handleAssignmentUpdated = async (updatedData) => {
       try {
-        // 获取更新后的作业
+        // 判断是否为学生提交作业
+        if (updatedData.status === 'completed' && !isTeacher.value) {
+          // 直接更新作业列表中的状态
+          const index = assignments.value.findIndex(a => a.id === updatedData.assignmentId);
+          if (index !== -1) {
+            assignments.value[index].status = 'completed';
+            assignments.value[index].completion_rate = 100;
+            ElMessage.success('作业已提交成功');
+          }
+          assignmentViewerDialogVisible.value = false;
+          return;
+        }
+        
+        // 教师端或其他情况处理
         try {
           const response = await courseAPI.getCourseAssignment(courseId.value, updatedData.assignmentId);
           if (response.data.assignment) {
@@ -1148,7 +1241,20 @@ export default {
           console.log('作业API不存在，模拟状态更新:', apiError);
           const index = assignments.value.findIndex(a => a.id === updatedData.assignmentId);
           if (index !== -1) {
-            assignments.value[index].status = updatedData.status || 'completed';
+            // 如果提供了完整的作业对象，使用它
+            if (updatedData.assignment) {
+              assignments.value[index] = {
+                ...assignments.value[index],
+                ...updatedData.assignment
+              };
+            } else {
+              // 否则只更新状态
+              assignments.value[index].status = updatedData.status || 'completed';
+              // 如果是已完成状态，设置进度为100%
+              if (updatedData.status === 'completed') {
+                assignments.value[index].completion_rate = 100;
+              }
+            }
             ElMessage.success('作业状态已更新(模拟)');
           }
         }
@@ -1232,6 +1338,7 @@ export default {
       courseId,
       currentCourse,
       courseStudents,
+      courseProgress,
       isTeacher,
       courseSections,
       assignments,
@@ -1307,8 +1414,37 @@ export default {
 .course-description {
   color: #606266;
   margin-top: 15px;
+  margin-bottom: 20px;
   font-size: 16px;
   line-height: 1.6;
+}
+
+.course-progress {
+  margin-top: 20px;
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.progress-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #606266;
+}
+
+.progress-percent {
+  font-size: 18px;
+  font-weight: bold;
+  color: #409EFF;
 }
 
 .course-tabs {

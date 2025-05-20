@@ -145,12 +145,20 @@ export const courseAPI = {
   },
   
   // 作业相关方法
-  getCourseAssignments(courseId) {
-    return axios.get(`/courses/${courseId}/assignments`);
+  getCourseAssignments(courseId, userId = null) {
+    let url = `/courses/${courseId}/assignments`;
+    if (userId) {
+      url += `?user_id=${userId}`;
+    }
+    return axios.get(url);
   },
   
-  getCourseAssignment(courseId, assignmentId) {
-    return axios.get(`/courses/${courseId}/assignments/${assignmentId}`);
+  getCourseAssignment(courseId, assignmentId, userId = null) {
+    let url = `/courses/${courseId}/assignments/${assignmentId}`;
+    if (userId) {
+      url += `?user_id=${userId}`;
+    }
+    return axios.get(url);
   },
   
   createCourseAssignment(courseId, assignmentData) {

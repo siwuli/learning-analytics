@@ -9,11 +9,22 @@ def get_course_assignments(course_id):
     """获取课程的所有作业"""
     course = Course.query.get_or_404(course_id)
     
+    # 获取查询参数中的user_id
+    user_id = request.args.get('user_id', type=int)
+    
     assignments = Assignment.query.filter_by(course_id=course_id).all()
+    
+    # 根据是否传入user_id来决定使用哪种序列化方法
+    if user_id:
+        # 使用针对特定用户的序列化
+        assignment_dicts = [assignment.to_dict_for_user(user_id) for assignment in assignments]
+    else:
+        # 使用通用序列化
+        assignment_dicts = [assignment.to_dict() for assignment in assignments]
     
     return jsonify({
         'status': 'success',
-        'assignments': [assignment.to_dict() for assignment in assignments]
+        'assignments': assignment_dicts
     })
 
 @api_bp.route('/courses/<int:course_id>/assignments/<int:assignment_id>', methods=['GET'])
@@ -21,9 +32,20 @@ def get_course_assignment(course_id, assignment_id):
     """获取课程的特定作业"""
     assignment = Assignment.query.filter_by(id=assignment_id, course_id=course_id).first_or_404()
     
+    # 获取查询参数中的user_id
+    user_id = request.args.get('user_id', type=int)
+    
+    # 根据是否传入user_id来决定使用哪种序列化方法
+    if user_id:
+        # 使用针对特定用户的序列化
+        assignment_dict = assignment.to_dict_for_user(user_id)
+    else:
+        # 使用通用序列化
+        assignment_dict = assignment.to_dict()
+    
     return jsonify({
         'status': 'success',
-        'assignment': assignment.to_dict()
+        'assignment': assignment_dict
     })
 
 @api_bp.route('/courses/<int:course_id>/assignments', methods=['POST'])
@@ -43,12 +65,16 @@ def create_course_assignment(course_id):
                 'message': '无效的截止日期格式'
             }), 400
     
+    # 处理附件列表
+    attachments = data.get('attachments', [])
+    
     new_assignment = Assignment(
         course_id=course_id,
         title=data.get('title'),
         description=data.get('description'),
         deadline=deadline,
-        points=data.get('points', 10)
+        points=data.get('points', 10),
+        attachments=attachments  # 保存附件列表
     )
     
     db.session.add(new_assignment)
@@ -80,6 +106,8 @@ def update_course_assignment(course_id, assignment_id):
             }), 400
     if 'points' in data:
         assignment.points = data['points']
+    if 'attachments' in data:
+        assignment.attachments = data['attachments']
     
     db.session.commit()
     
@@ -163,6 +191,24 @@ def submit_assignment(course_id, assignment_id):
     # 检查用户是否存在
     user = User.query.get_or_404(user_id)
     
+    # 处理文件列表
+    files = data.get('files', [])
+    # 如果有文件列表，确保包含必要的信息
+    processed_files = []
+    if files:
+        for file in files:
+            if isinstance(file, dict) and 'name' in file:
+                # 已经处理过的文件对象
+                processed_files.append(file)
+            elif hasattr(file, 'name'):
+                # 文件对象需要转换为dict
+                processed_files.append({
+                    'name': file.get('name', 'unknown'),
+                    'size': file.get('size', 0),
+                    'type': file.get('type', ''),
+                    'url': f'/api/static/uploads/{file.get("name", "unknown")}'
+                })
+    
     # 查看是否已经提交过
     existing_submission = AssignmentSubmission.query.filter_by(
         assignment_id=assignment_id,
@@ -173,9 +219,18 @@ def submit_assignment(course_id, assignment_id):
         # 更新现有提交
         if 'content' in data:
             existing_submission.content = data['content']
+        
+        # 更新文件列表
+        if processed_files:
+            existing_submission.files = processed_files
+            
         existing_submission.submit_time = datetime.utcnow()
         
         db.session.commit()
+        
+        # 更新课程进度
+        from .progress import update_course_progress
+        update_course_progress(user_id, course_id)
         
         return jsonify({
             'status': 'success',
@@ -188,17 +243,22 @@ def submit_assignment(course_id, assignment_id):
             assignment_id=assignment_id,
             user_id=user_id,
             content=data.get('content'),
+            files=processed_files if processed_files else None,
             submit_time=datetime.utcnow()
         )
         
         db.session.add(new_submission)
         db.session.commit()
         
+        # 更新课程进度
+        from .progress import update_course_progress
+        update_course_progress(user_id, course_id)
+        
         return jsonify({
             'status': 'success',
             'message': '作业提交成功',
             'submission': new_submission.to_dict()
-        }), 201
+        })
 
 @api_bp.route('/courses/<int:course_id>/assignments/<int:assignment_id>/submissions/<int:submission_id>/grade', methods=['POST'])
 def grade_assignment(course_id, assignment_id, submission_id):

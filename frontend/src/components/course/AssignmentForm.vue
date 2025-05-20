@@ -36,10 +36,13 @@
     <el-form-item label="附件">
       <el-upload
         class="assignment-upload"
-        action=""
+        action="#"
         :auto-upload="false"
+        :http-request="() => {}"
         :on-change="handleFileChange"
+        :on-remove="handleFileRemove"
         :file-list="fileList"
+        multiple
       >
         <el-button type="primary">选择附件</el-button>
         <template #tip>
@@ -56,8 +59,9 @@
 </template>
 
 <script>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import axios from 'axios'
 
 export default {
   name: 'AssignmentForm',
@@ -103,10 +107,92 @@ export default {
       ]
     }
     
+    // 初始化附件列表
+    onMounted(() => {
+      if (props.assignment.attachments && props.assignment.attachments.length > 0) {
+        fileList.value = props.assignment.attachments.map((attachment, index) => ({
+          uid: index,
+          name: attachment.name,
+          url: attachment.url,
+          status: 'success'
+        }));
+      }
+    });
+    
     // 处理文件变化
-    const handleFileChange = (file) => {
-      // 实际情况中，应该处理文件上传逻辑
-      console.log('已选择文件:', file)
+    const handleFileChange = async (file) => {
+      try {
+        // 检查文件大小
+        if (file.raw && file.raw.size > 50 * 1024 * 1024) { // 50MB限制
+          ElMessage.error('文件过大，请上传小于50MB的文件');
+          // 从上传列表中移除
+          const index = fileList.value.findIndex(f => f.uid === file.uid);
+          if (index !== -1) {
+            fileList.value.splice(index, 1);
+          }
+          return;
+        }
+        
+        // 显示文件上传中
+        const loadingMessage = ElMessage({
+          message: `正在上传文件: ${file.name}`,
+          type: 'info',
+          duration: 0
+        });
+        
+        // 创建FormData
+        const formData = new FormData();
+        formData.append('file', file.raw);
+        
+        // 直接使用axios上传文件
+        const response = await axios.post('/upload', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        
+        // 关闭上传提示
+        loadingMessage.close();
+        
+        if (response.data && response.data.status === 'success') {
+          // 将上传成功的文件信息添加到表单的附件列表
+          form.attachments.push({
+            name: response.data.original_filename,
+            size: file.raw.size,
+            type: file.raw.type,
+            url: response.data.file_url,
+            file_path: response.data.file_path
+          });
+          
+          ElMessage.success(`文件 ${file.name} 上传成功`);
+        } else {
+          ElMessage.error(`文件 ${file.name} 上传失败: ${response.data?.message || '未知错误'}`);
+          
+          // 从上传列表中移除
+          const index = fileList.value.findIndex(f => f.uid === file.uid);
+          if (index !== -1) {
+            fileList.value.splice(index, 1);
+          }
+        }
+      } catch (error) {
+        ElMessage.error(`文件 ${file.name} 上传失败: ${error.message || '未知错误'}`);
+        console.error('文件上传出错:', error);
+        
+        // 从上传列表中移除
+        const index = fileList.value.findIndex(f => f.uid === file.uid);
+        if (index !== -1) {
+          fileList.value.splice(index, 1);
+        }
+      }
+    }
+    
+    // 处理文件移除
+    const handleFileRemove = (file) => {
+      // 从表单的附件列表中移除
+      const index = form.attachments.findIndex(f => f.name === file.name);
+      if (index !== -1) {
+        form.attachments.splice(index, 1);
+      }
     }
     
     // 提交表单
@@ -141,6 +227,7 @@ export default {
       }
       
       fileList.value = []
+      form.attachments = []
     }
     
     return {
@@ -149,6 +236,7 @@ export default {
       rules,
       fileList,
       handleFileChange,
+      handleFileRemove,
       submitForm,
       resetForm
     }
