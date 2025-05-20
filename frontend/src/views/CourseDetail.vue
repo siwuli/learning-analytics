@@ -18,165 +18,217 @@
         <p class="course-description">{{ currentCourse.description }}</p>
       </div>
       
-      <el-tabs v-model="activeTab" class="course-tabs">
-        <el-tab-pane label="课程内容" name="content">
-          <div class="course-sections">
-            <div v-if="courseSections.length === 0" class="empty-data">
-              <el-empty description="暂无内容" />
-            </div>
-            
-            <el-collapse v-else v-model="activeSection">
+      <el-card v-if="!loading">
+        <el-tabs 
+          v-model="activeTab" 
+          type="border-card"
+          @tab-click="handleTabClick"
+        >
+          <el-tab-pane label="课程内容" name="content">
+            <el-collapse v-if="courseSections.length > 0">
               <el-collapse-item 
                 v-for="section in courseSections" 
                 :key="section.id"
                 :name="section.id"
               >
                 <template #title>
-                  <div class="section-title">
+                  <div class="section-title-wrapper">
                     <span>{{ section.title }}</span>
-                    <el-progress 
-                      v-if="!isTeacher" 
-                      :percentage="section.progress || 0" 
-                      :format="percentFormat"
-                      style="width: 120px; margin-left: 20px;"
-                    ></el-progress>
+                    <el-button 
+                      v-if="isTeacher"
+                      type="danger" 
+                      size="small"
+                      @click.stop="confirmDeleteSection(section)"
+                    >
+                      删除章节
+                    </el-button>
                   </div>
                 </template>
-                
-                <div class="section-content">
-                  <div class="section-description">{{ section.description }}</div>
-                  
-                  <div class="section-items">
-                    <div 
-                      v-for="item in section.items" 
-                      :key="item.id"
-                      class="item-card"
-                    >
-                      <div class="item-icon">
-                        <el-icon v-if="item.type === 'document'"><Document /></el-icon>
-                        <el-icon v-else-if="item.type === 'video'"><VideoCamera /></el-icon>
-                        <el-icon v-else-if="item.type === 'quiz'"><QuestionFilled /></el-icon>
-                        <el-icon v-else><Notebook /></el-icon>
-                      </div>
-                      
-                      <div class="item-info">
-                        <div class="item-title">{{ item.title }}</div>
-                        <div class="item-description">{{ item.description }}</div>
-                      </div>
-                      
-                      <div class="item-status">
-                        <el-button size="small" type="primary">
-                          {{ isTeacher ? '编辑' : '查看' }}
-                        </el-button>
-                        
-                        <el-tag v-if="!isTeacher && item.completed" type="success">已完成</el-tag>
-                      </div>
+                <div class="section-header">
+                  <p class="section-description">{{ section.description }}</p>
+                  <div class="progress-info">
+                    <el-progress 
+                      :percentage="section.progress" 
+                      :format="format => `${format}%`"
+                      :stroke-width="10"
+                      :status="section.progress === 100 ? 'success' : ''"
+                    ></el-progress>
+                    <div class="progress-text" v-if="section.totalResources > 0">
+                      {{ section.completedResources }}/{{ section.totalResources }} 个资源已完成
                     </div>
                   </div>
-                  
-                  <div v-if="isTeacher" class="add-item">
-                    <el-button type="success" size="small" plain>添加内容</el-button>
-                  </div>
+                </div>
+                
+                <el-timeline>
+                  <el-timeline-item
+                    v-for="item in section.items"
+                    :key="item.id"
+                    :type="getItemType(item.type)"
+                    :color="item.completed ? '#67C23A' : '#409EFF'"
+                  >
+                    <div class="timeline-item-content">
+                      <div class="item-title">{{ item.title }}</div>
+                      <div class="item-description">{{ item.description }}</div>
+                      <div class="item-actions">
+                        <el-button 
+                          type="primary" 
+                          size="small" 
+                          @click="viewResource(item)"
+                        >
+                          查看
+                        </el-button>
+                        <el-tag 
+                          :type="item.completed ? 'success' : 'info'"
+                          size="small"
+                        >
+                          {{ item.completed ? '已完成' : '未完成' }}
+                        </el-tag>
+                        <el-button 
+                          v-if="isTeacher" 
+                          type="danger" 
+                          size="small" 
+                          @click="confirmDeleteResource(section.id, item)"
+                        >
+                          删除
+                        </el-button>
+                      </div>
+                    </div>
+                  </el-timeline-item>
+                </el-timeline>
+                
+                <div v-if="isTeacher" class="add-resource-button">
+                  <el-button 
+                    type="primary" 
+                    plain 
+                    size="small" 
+                    @click="showAddResourceDialog(section.id)"
+                  >
+                    添加资源
+                  </el-button>
                 </div>
               </el-collapse-item>
             </el-collapse>
             
-            <div v-if="isTeacher" class="add-section">
-              <el-button type="primary" plain>添加章节</el-button>
-            </div>
-          </div>
-        </el-tab-pane>
-        
-        <el-tab-pane label="学生" name="students" v-if="isTeacher">
-          <div class="course-students">
-            <div class="students-header">
-              <h3>已选课学生</h3>
-              <el-button type="primary" size="small" @click="openAddStudentsDialog">添加学生</el-button>
-            </div>
+            <el-empty v-else description="暂无课程内容"></el-empty>
             
-            <el-table :data="courseStudents" v-loading="loadingStudents" style="width: 100%">
-              <el-table-column prop="username" label="姓名"></el-table-column>
+            <div v-if="isTeacher" class="add-section-button">
+              <el-button 
+                type="primary" 
+                @click="showAddSectionDialog"
+              >
+                添加章节
+              </el-button>
+            </div>
+          </el-tab-pane>
+          
+          <el-tab-pane label="作业" name="assignments">
+            <div class="assignment-list static-content-container">
+              <el-table 
+                :data="assignments" 
+                style="width: 100%"
+                v-loading="loadingAssignments"
+                :height="isFixedHeight ? 400 : null"
+              >
+                <el-table-column prop="title" label="名称"></el-table-column>
+                <el-table-column prop="deadline" label="截止日期"></el-table-column>
+                <el-table-column prop="points" label="分数"></el-table-column>
+                <el-table-column label="状态">
+                  <template #default="scope">
+                    <el-tag :type="getStatusType(scope.row.status)">
+                      {{ getStatusText(scope.row.status) }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作">
+                  <template #default="scope">
+                    <el-button 
+                      type="primary" 
+                      size="small" 
+                      @click="viewAssignment(scope.row)"
+                    >
+                      查看
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+              
+              <div v-if="isTeacher" class="add-assignment-button">
+                <el-button 
+                  type="primary" 
+                  @click="showAddAssignmentDialog"
+                >
+                  添加作业
+                </el-button>
+              </div>
+            </div>
+          </el-tab-pane>
+          
+          <el-tab-pane label="讨论" name="discussions">
+            <div class="discussion-list static-content-container">
+              <el-table 
+                :data="discussions" 
+                style="width: 100%"
+                v-loading="loadingDiscussions"
+                :height="isFixedHeight ? 400 : null"
+              >
+                <el-table-column prop="title" label="标题"></el-table-column>
+                <el-table-column prop="author" label="发起人"></el-table-column>
+                <el-table-column prop="replies" label="回复数"></el-table-column>
+                <el-table-column prop="created_at" label="发布时间"></el-table-column>
+                <el-table-column label="操作">
+                  <template #default="scope">
+                    <el-button 
+                      type="primary" 
+                      size="small" 
+                      @click="viewDiscussion(scope.row)"
+                    >
+                      查看
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+              
+              <div class="add-discussion-button">
+                <el-button 
+                  type="primary" 
+                  @click="showAddDiscussionDialog"
+                >
+                  发起讨论
+                </el-button>
+              </div>
+            </div>
+          </el-tab-pane>
+          
+          <el-tab-pane v-if="isTeacher" label="学生" name="students">
+            <el-table 
+              :data="courseStudents" 
+              style="width: 100%"
+              v-loading="loadingStudents"
+            >
+              <el-table-column prop="username" label="用户名"></el-table-column>
               <el-table-column prop="email" label="邮箱"></el-table-column>
-              <el-table-column prop="progress" label="完成进度" width="200">
+              <el-table-column label="操作">
                 <template #default="scope">
-                  <el-progress :percentage="scope.row.progress || 0"></el-progress>
-                </template>
-              </el-table-column>
-              <el-table-column label="操作" width="150">
-                <template #default="scope">
-                  <el-button type="primary" size="small" @click="viewStudentDetail(scope.row)">
-                    查看详情
+                  <el-button 
+                    type="primary" 
+                    size="small" 
+                    @click="viewStudentProgress(scope.row)"
+                  >
+                    查看进度
+                  </el-button>
+                  <el-button 
+                    type="danger" 
+                    size="small" 
+                    @click="removeStudent(scope.row)"
+                  >
+                    移除
                   </el-button>
                 </template>
               </el-table-column>
             </el-table>
-          </div>
-        </el-tab-pane>
-        
-        <el-tab-pane label="作业" name="assignments">
-          <div class="course-assignments">
-            <div class="assignments-header">
-              <h3>课程作业</h3>
-              <el-button v-if="isTeacher" type="primary" size="small">发布作业</el-button>
-            </div>
-            
-            <div v-if="assignments.length === 0" class="empty-data">
-              <el-empty description="暂无作业" />
-            </div>
-            
-            <div v-else class="assignments-list">
-              <el-card v-for="assignment in assignments" :key="assignment.id" class="assignment-card">
-                <div class="assignment-header">
-                  <h4>{{ assignment.title }}</h4>
-                  <div class="assignment-status">
-                    <el-tag :type="getAssignmentStatusType(assignment)">
-                      {{ getAssignmentStatusText(assignment) }}
-                    </el-tag>
-                  </div>
-                </div>
-                
-                <div class="assignment-info">
-                  <p>{{ assignment.description }}</p>
-                  <div class="assignment-meta">
-                    <span class="deadline">截止日期: {{ formatDate(assignment.deadline) }}</span>
-                    <span class="points">分值: {{ assignment.points }} 分</span>
-                  </div>
-                </div>
-                
-                <div class="assignment-actions">
-                  <el-button type="primary" size="small">
-                    {{ isTeacher ? '查看提交' : '提交作业' }}
-                  </el-button>
-                </div>
-              </el-card>
-            </div>
-          </div>
-        </el-tab-pane>
-        
-        <el-tab-pane label="讨论" name="discussions">
-          <div class="course-discussions">
-            <div class="discussions-header">
-              <h3>课程讨论</h3>
-              <el-button type="primary" size="small">发起讨论</el-button>
-            </div>
-            
-            <div v-if="discussions.length === 0" class="empty-data">
-              <el-empty description="暂无讨论" />
-            </div>
-            
-            <div v-else class="discussions-list">
-              <!-- 讨论列表 -->
-            </div>
-          </div>
-        </el-tab-pane>
-        
-        <el-tab-pane label="数据分析" name="analytics" v-if="isTeacher">
-          <div class="course-analytics">
-            <h3>课程数据分析</h3>
-            <!-- 数据分析内容 -->
-          </div>
-        </el-tab-pane>
-      </el-tabs>
+          </el-tab-pane>
+        </el-tabs>
+      </el-card>
     </div>
     
     <div v-else class="error-container">
@@ -229,17 +281,73 @@
         </div>
       </template>
     </el-dialog>
+    
+    <!-- 查看资源对话框 -->
+    <el-dialog
+      v-model="resourceDialogVisible"
+      :title="currentResource.title || '查看资源'"
+      width="70%"
+      destroy-on-close
+    >
+      <resource-viewer 
+        v-if="currentResource.id" 
+        :resource="currentResource"
+        @updated="handleResourceUpdated"
+      />
+    </el-dialog>
+    
+    <!-- 添加章节对话框 -->
+    <el-dialog
+      v-model="sectionDialogVisible"
+      :title="currentSection.id ? '编辑章节' : '添加章节'"
+      width="50%"
+      destroy-on-close
+    >
+      <section-form
+        :course-id="courseId"
+        :section="currentSection"
+        @submit="handleSectionSubmit"
+        @cancel="sectionDialogVisible = false"
+      />
+    </el-dialog>
+    
+    <!-- 添加资源对话框 -->
+    <el-dialog
+      v-model="resourceFormDialogVisible"
+      :title="currentResource.id ? '编辑资源' : '添加资源'"
+      width="70%"
+      destroy-on-close
+      :before-close="handleResourceDialogClose"
+    >
+      <resource-form 
+        ref="resourceFormRef"
+        :section-id="currentSectionId"
+        :resource="currentResource"
+        @submit="handleResourceSubmit"
+        @cancel="closeResourceFormDialog"
+      />
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
 import { useStore } from 'vuex'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox, ElDialog } from 'element-plus'
+import { courseAPI } from '../services/api'
+import ResourceViewer from '../components/course/ResourceViewer.vue'
+import SectionForm from '../components/course/SectionForm.vue'
+import ResourceForm from '../components/course/ResourceForm.vue'
+import { setupScrollContainer } from '../utils/resizeUtil'
 
 export default {
   name: 'CourseDetail',
+  components: {
+    ResourceViewer,
+    SectionForm,
+    ResourceForm
+  },
   setup() {
     const store = useStore()
     const route = useRoute()
@@ -247,11 +355,31 @@ export default {
     
     const loading = ref(true)
     const loadingStudents = ref(false)
+    const loadingAssignments = ref(false)
+    const loadingDiscussions = ref(false)
     const activeTab = ref('content')
     const activeSection = ref([])
     const addStudentsDialogVisible = ref(false)
     const studentSearchQuery = ref('')
     const selectedStudents = ref([])
+    
+    // 使用固定高度减少ResizeObserver错误
+    const isFixedHeight = ref(true)
+    
+    // 资源查看对话框
+    const resourceDialogVisible = ref(false)
+    const currentResource = ref({})
+    
+    // 章节管理对话框
+    const sectionDialogVisible = ref(false)
+    const currentSection = ref({})
+    
+    // 资源管理对话框
+    const resourceFormDialogVisible = ref(false)
+    const currentSectionId = ref(null)
+    
+    // 资源表单引用
+    const resourceFormRef = ref(null)
     
     // 获取当前课程ID
     const courseId = computed(() => route.params.id)
@@ -277,65 +405,87 @@ export default {
     // 初始化加载课程数据
     const loadCourseData = async () => {
       try {
-        loading.value = true
+        loading.value = true;
         
         // 加载课程详情
-        await store.dispatch('courses/fetchCourse', courseId.value)
+        await store.dispatch('courses/fetchCourse', courseId.value);
+        
+        // 加载课程章节
+        const sectionsResponse = await courseAPI.getCourseSections(courseId.value);
+        courseSections.value = [];
+        
+        // 如果有章节数据，加载每个章节的资源
+        if (sectionsResponse.data.sections && sectionsResponse.data.sections.length > 0) {
+          // 为每个章节加载资源
+          for (const section of sectionsResponse.data.sections) {
+            const sectionDetail = await courseAPI.getCourseSection(courseId.value, section.id);
+            const enrichedSection = {
+              ...sectionDetail.data.section,
+              progress: 0, // 默认进度为0
+              completedResources: 0, // 计数完成的资源
+              totalResources: 0 // 总资源数
+            };
+            
+            // 将资源转换为前端需要的格式
+            if (enrichedSection.resources) {
+              enrichedSection.totalResources = enrichedSection.resources.length;
+              
+              enrichedSection.items = await Promise.all(enrichedSection.resources.map(async resource => {
+                const resourceItem = {
+                  id: resource.id,
+                  section_id: section.id,
+                  type: resource.resource_type,
+                  title: resource.title,
+                  description: resource.description,
+                  completed: false // 默认未完成
+                };
+                
+                // 如果用户已登录，尝试获取资源进度
+                if (store.state.auth.user?.id) {
+                  try {
+                    const progressResponse = await courseAPI.getResourceProgress(
+                      store.state.auth.user.id, 
+                      resource.id
+                    );
+                    if (progressResponse.data.status === 'success') {
+                      resourceItem.completed = progressResponse.data.progress.completed;
+                      
+                      // 如果资源已完成，增加章节完成资源计数
+                      if (resourceItem.completed) {
+                        enrichedSection.completedResources++;
+                      }
+                    }
+                  } catch (error) {
+                    // 如果获取失败，使用默认值
+                    console.warn(`无法获取资源 ${resource.id} 的进度:`, error);
+                  }
+                }
+                
+                return resourceItem;
+              }));
+              
+              // 计算章节完成度百分比
+              if (enrichedSection.totalResources > 0) {
+                enrichedSection.progress = Math.round(
+                  (enrichedSection.completedResources / enrichedSection.totalResources) * 100
+                );
+              }
+              
+              delete enrichedSection.resources;
+            } else {
+              enrichedSection.items = [];
+            }
+            
+            courseSections.value.push(enrichedSection);
+          }
+        }
         
         // 如果是教师，加载课程学生
         if (isTeacher.value) {
-          loadingStudents.value = true
-          await store.dispatch('courses/fetchCourseStudents', courseId.value)
-          loadingStudents.value = false
+          loadingStudents.value = true;
+          await store.dispatch('courses/fetchCourseStudents', courseId.value);
+          loadingStudents.value = false;
         }
-        
-        // 模拟加载课程章节数据
-        courseSections.value = [
-          {
-            id: 1,
-            title: '第一章：课程介绍',
-            description: '本章介绍课程的基本内容和学习目标',
-            progress: 100,
-            items: [
-              {
-                id: 101,
-                type: 'document',
-                title: '课程大纲',
-                description: '详细介绍课程的内容与安排',
-                completed: true
-              },
-              {
-                id: 102,
-                type: 'video',
-                title: '课程导览视频',
-                description: '5分钟视频介绍课程内容',
-                completed: true
-              }
-            ]
-          },
-          {
-            id: 2,
-            title: '第二章：基础知识',
-            description: '学习本课程所需的基础理论',
-            progress: 50,
-            items: [
-              {
-                id: 201,
-                type: 'document',
-                title: '基础理论文档',
-                description: '基础理论详解',
-                completed: true
-              },
-              {
-                id: 202,
-                type: 'quiz',
-                title: '基础知识测试',
-                description: '检验基础知识掌握情况',
-                completed: false
-              }
-            ]
-          }
-        ]
         
         // 模拟加载作业数据
         assignments.value = [
@@ -355,15 +505,15 @@ export default {
             points: 15,
             status: 'not_started'
           }
-        ]
+        ];
         
         // 模拟讨论数据
-        discussions.value = []
+        discussions.value = [];
         
       } catch (error) {
-        ElMessage.error('加载课程数据失败: ' + error.message)
+        ElMessage.error('加载课程数据失败: ' + error.message);
       } finally {
-        loading.value = false
+        loading.value = false;
       }
     }
     
@@ -451,23 +601,342 @@ export default {
       ElMessage.info('查看学生详情功能待实现')
     }
     
+    // 移除学生
+    const removeStudent = async (student) => {
+      try {
+        await ElMessageBox.confirm(
+          `确定要将学生 "${student.username}" 从课程中移除吗？`,
+          '警告',
+          {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
+        )
+        
+        await store.dispatch('courses/dropCourse', {
+          courseId: courseId.value,
+          userId: student.id
+        })
+        
+        // 重新加载课程学生
+        await store.dispatch('courses/fetchCourseStudents', courseId.value)
+        ElMessage.success('学生已从课程中移除')
+      } catch (error) {
+        if (error !== 'cancel') {
+          ElMessage.error('移除学生失败: ' + (error.message || '未知错误'))
+        }
+      }
+    }
+    
     // 返回上一页
     const goBack = () => {
       router.back()
     }
     
+    // 获取资源类型图标
+    const getItemType = (type) => {
+      switch (type) {
+        case 'document':
+          return 'primary'
+        case 'video':
+          return 'success'
+        case 'quiz':
+          return 'warning'
+        case 'assignment':
+          return 'danger'
+        default:
+          return 'info'
+      }
+    }
+    
+    // 获取状态类型
+    const getStatusType = (status) => {
+      switch (status) {
+        case 'completed':
+          return 'success'
+        case 'pending':
+          return 'warning'
+        case 'not_started':
+          return 'info'
+        case 'overdue':
+          return 'danger'
+        default:
+          return 'info'
+      }
+    }
+    
+    // 获取状态文本
+    const getStatusText = (status) => {
+      switch (status) {
+        case 'completed':
+          return '已完成'
+        case 'pending':
+          return '进行中'
+        case 'not_started':
+          return '未开始'
+        case 'overdue':
+          return '已逾期'
+        default:
+          return '未知状态'
+      }
+    }
+    
+    // 查看资源
+    const viewResource = (resource) => {
+      currentResource.value = {
+        id: resource.id,
+        title: resource.title,
+        description: resource.description,
+        resource_type: resource.type,
+        content: '',
+        completed: resource.completed
+      }
+      
+      // 加载资源详细内容
+      courseAPI.getSectionResource(resource.section_id, resource.id)
+        .then(response => {
+          currentResource.value = response.data.resource
+          resourceDialogVisible.value = true
+        })
+        .catch(error => {
+          ElMessage.error('加载资源失败: ' + error.message)
+        })
+    }
+    
+    // 资源更新后的处理
+    const handleResourceUpdated = async (updatedResource) => {
+      ElMessage.success('资源状态已更新')
+      
+      // 更新本地资源列表中的状态
+      courseSections.value.forEach(section => {
+        const resourceItem = section.items.find(item => item.id === updatedResource.id)
+        if (resourceItem) {
+          resourceItem.completed = updatedResource.completed
+        }
+      })
+      
+      // 关闭对话框
+      resourceDialogVisible.value = false
+      
+      // 重新加载课程数据以获取最新的进度信息
+      // 延迟执行，确保后端数据已经更新
+      setTimeout(async () => {
+        await loadCourseData()
+      }, 500)
+    }
+    
+    // 查看作业
+    const viewAssignment = (assignment) => {
+      ElMessage.info(`查看作业: ${assignment.title}`)
+      // TODO: 实现一个完整的作业查看/提交组件
+    }
+    
+    // 查看讨论
+    const viewDiscussion = (discussion) => {
+      ElMessage.info(`查看讨论: ${discussion.title}`)
+      // TODO: 实现一个完整的讨论组件
+    }
+    
+    // 查看学生进度
+    const viewStudentProgress = (student) => {
+      ElMessage.info(`查看学生${student.username}的进度`)
+      // TODO: 实现学生进度查看功能
+    }
+    
+    // 显示添加章节对话框
+    const showAddSectionDialog = () => {
+      currentSection.value = {
+        title: '',
+        description: '',
+        order: courseSections.value.length + 1
+      }
+      sectionDialogVisible.value = true
+    }
+    
+    // 处理章节表单提交
+    const handleSectionSubmit = async (sectionData) => {
+      try {
+        if (sectionData.id) {
+          // 更新现有章节
+          await courseAPI.updateCourseSection(courseId.value, sectionData.id, sectionData)
+          ElMessage.success('章节已更新')
+        } else {
+          // 创建新章节
+          await courseAPI.createCourseSection(courseId.value, sectionData)
+          ElMessage.success('章节已添加')
+        }
+        
+        // 重新加载课程章节
+        await loadCourseData()
+        sectionDialogVisible.value = false
+      } catch (error) {
+        ElMessage.error('保存章节失败: ' + error.message)
+      }
+    }
+    
+    // 显示添加资源对话框
+    const showAddResourceDialog = (sectionId) => {
+      currentSectionId.value = sectionId
+      currentResource.value = {
+        title: '',
+        description: '',
+        resource_type: 'document',
+        content: '',
+        order: 1
+      }
+      resourceFormDialogVisible.value = true
+    }
+    
+    // 处理资源表单提交
+    const handleResourceSubmit = async (resourceData) => {
+      try {
+        if (resourceData.id) {
+          // 更新现有资源
+          await courseAPI.updateSectionResource(
+            resourceData.section_id, 
+            resourceData.id, 
+            resourceData
+          )
+          ElMessage.success('资源已更新')
+        } else {
+          // 创建新资源
+          await courseAPI.createSectionResource(resourceData.section_id, resourceData)
+          ElMessage.success('资源已添加')
+        }
+        
+        // 重新加载课程章节
+        await loadCourseData()
+        resourceFormDialogVisible.value = false
+      } catch (error) {
+        ElMessage.error('保存资源失败: ' + error.message)
+      }
+    }
+    
+    // 显示添加作业对话框
+    const showAddAssignmentDialog = () => {
+      ElMessage.info('添加作业')
+      // TODO: 实现添加作业功能
+    }
+    
+    // 显示添加讨论对话框
+    const showAddDiscussionDialog = () => {
+      ElMessage.info('发起讨论')
+      // TODO: 实现添加讨论功能
+    }
+    
+    // 处理标签页切换
+    const handleTabClick = () => {
+      // 延迟处理，确保DOM已更新
+      setTimeout(() => {
+        try {
+          // 设置固定高度状态
+          isFixedHeight.value = true
+          
+          // 根据当前选中的标签页设置相应容器
+          if (activeTab.value === 'assignments') {
+            setupScrollContainer('.assignment-list')
+          } else if (activeTab.value === 'discussions') {
+            setupScrollContainer('.discussion-list')
+          } else if (activeTab.value === 'students') {
+            setupScrollContainer('.el-table')
+          }
+        } catch (e) {
+          console.log('处理标签页错误', e)
+        }
+      }, 50)
+    }
+    
+    // 关闭资源表单对话框
+    const closeResourceFormDialog = () => {
+      resourceFormDialogVisible.value = false
+    }
+    
+    // 资源对话框关闭前处理
+    const handleResourceDialogClose = (done) => {
+      // 清理ResizeObserver以防止错误
+      if (resourceFormRef.value?.cleanupResizeObserver) {
+        resourceFormRef.value.cleanupResizeObserver()
+      }
+      done()
+    }
+    
+    // 删除资源
+    const confirmDeleteResource = async (sectionId, resource) => {
+      try {
+        await ElMessageBox.confirm(
+          `确定要删除资源 "${resource.title}" 吗？`,
+          '警告',
+          {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
+        )
+        
+        await courseAPI.deleteSectionResource(sectionId, resource.id)
+        
+        // 重新加载课程章节
+        await loadCourseData()
+        ElMessage.success('资源已删除')
+      } catch (error) {
+        if (error !== 'cancel') {
+          ElMessage.error('删除资源失败: ' + (error.message || '未知错误'))
+        }
+      }
+    }
+    
+    // 删除章节
+    const confirmDeleteSection = async (section) => {
+      try {
+        await ElMessageBox.confirm(
+          `确定要删除章节 "${section.title}" 吗？`,
+          '警告',
+          {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
+        )
+        
+        await courseAPI.deleteCourseSection(courseId.value, section.id)
+        
+        // 重新加载课程章节
+        await loadCourseData()
+        ElMessage.success('章节已删除')
+      } catch (error) {
+        if (error !== 'cancel') {
+          ElMessage.error('删除章节失败: ' + (error.message || '未知错误'))
+        }
+      }
+    }
+    
     onMounted(() => {
       loadCourseData()
+      
+      // 初始化时也设置容器，减少ResizeObserver错误
+      setTimeout(() => {
+        setupScrollContainer('.el-tabs__content')
+      }, 500)
     })
     
     return {
       loading,
       loadingStudents,
+      loadingAssignments,
+      loadingDiscussions,
       activeTab,
       activeSection,
       addStudentsDialogVisible,
       studentSearchQuery,
       selectedStudents,
+      resourceDialogVisible,
+      currentResource,
+      sectionDialogVisible,
+      currentSection,
+      resourceFormDialogVisible,
+      currentSectionId,
+      isFixedHeight,
       courseId,
       currentCourse,
       courseStudents,
@@ -485,7 +954,28 @@ export default {
       handleSelectionChange,
       addStudentsToCourse,
       viewStudentDetail,
-      goBack
+      removeStudent,
+      goBack,
+      getItemType,
+      getStatusType,
+      getStatusText,
+      viewResource,
+      viewAssignment,
+      viewDiscussion,
+      viewStudentProgress,
+      showAddSectionDialog,
+      showAddResourceDialog,
+      showAddAssignmentDialog,
+      showAddDiscussionDialog,
+      handleResourceUpdated,
+      handleSectionSubmit,
+      handleResourceSubmit,
+      handleTabClick,
+      resourceFormRef,
+      closeResourceFormDialog,
+      handleResourceDialogClose,
+      confirmDeleteResource,
+      confirmDeleteSection
     }
   }
 }
@@ -531,6 +1021,28 @@ export default {
   padding: 40px 0;
 }
 
+.section-title-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex: 1;
+}
+
+.section-title-wrapper button {
+  margin-left: 20px;
+}
+
+.timeline-item-content {
+  width: 100%;
+}
+
+.item-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+
 .section-title {
   display: flex;
   align-items: center;
@@ -545,8 +1057,20 @@ export default {
   margin-bottom: 20px;
 }
 
+.progress-info {
+  margin-bottom: 20px;
+}
+
+.progress-text {
+  margin-top: 5px;
+  font-size: 13px;
+  color: #909399;
+  text-align: right;
+}
+
 .section-items {
   margin-top: 15px;
+  min-height: 200px;
 }
 
 .item-card {
@@ -557,6 +1081,9 @@ export default {
   display: flex;
   align-items: center;
   transition: all 0.3s;
+  min-height: 80px;
+  height: auto;
+  overflow: hidden;
 }
 
 .item-card:hover {
@@ -635,5 +1162,29 @@ export default {
 .assignment-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+/* 新增CSS样式，优化布局减少ResizeObserver错误 */
+.static-content-container {
+  position: relative;
+  min-height: 400px;
+  overflow: auto;
+  margin-bottom: 20px;
+}
+
+/* 为el-tabs组件添加固定高度 */
+.el-tabs__content {
+  min-height: 500px;
+  position: relative;
+}
+
+/* 防止元素在标签页切换时的闪烁 */
+.el-tabs__item {
+  transition: color 0.15s !important;
+}
+
+/* 优化表格布局 */
+.el-table {
+  width: 100% !important;
 }
 </style> 

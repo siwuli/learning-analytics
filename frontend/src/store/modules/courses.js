@@ -102,6 +102,7 @@ const actions = {
       const response = await courseAPI.getCourses();
       commit('SET_ALL_COURSES', response.data.courses);
       commit('SET_LOADING', false);
+      return response.data.courses;
     } catch (error) {
       commit('SET_ERROR', error.response?.data?.message || '获取课程失败');
       commit('SET_LOADING', false);
@@ -113,12 +114,15 @@ const actions = {
   async fetchTeachingCourses({ commit, rootState }) {
     try {
       commit('SET_LOADING', true);
-      // 从所有课程中筛选教学课程
       const response = await courseAPI.getCourses();
       const user = rootState.auth.user;
-      const teachingCourses = response.data.courses.filter(course => course.instructor_id === user.id);
+      // 筛选当前用户作为教师的课程
+      const teachingCourses = response.data.courses.filter(course => 
+        course.instructor_id === user.id
+      );
       commit('SET_TEACHING_COURSES', teachingCourses);
       commit('SET_LOADING', false);
+      return teachingCourses;
     } catch (error) {
       commit('SET_ERROR', error.response?.data?.message || '获取教学课程失败');
       commit('SET_LOADING', false);
@@ -130,17 +134,14 @@ const actions = {
   async fetchEnrolledCourses({ commit, rootState }) {
     try {
       commit('SET_LOADING', true);
-      const user = rootState.auth.user;
-      // 这里应该有一个API来获取学生的已选课程
-      // 暂时模拟
-      const response = await courseAPI.getCourses();
-      // 在实际API中，这部分筛选应该由后端完成
-      const enrolledCourses = response.data.courses.filter(course => {
-        // 简单模拟，实际应该检查课程enrollments
-        return Math.random() > 0.5;
-      });
-      commit('SET_ENROLLED_COURSES', enrolledCourses);
+      
+      const userId = rootState.auth.user.id;
+      // 调用专门的API获取学生已选课程
+      const response = await courseAPI.getEnrolledCourses(userId);
+      
+      commit('SET_ENROLLED_COURSES', response.data.courses);
       commit('SET_LOADING', false);
+      return response.data.courses;
     } catch (error) {
       commit('SET_ERROR', error.response?.data?.message || '获取已选课程失败');
       commit('SET_LOADING', false);
@@ -149,19 +150,27 @@ const actions = {
   },
   
   // 获取可选课程
-  async fetchAvailableCourses({ commit, rootState, state }) {
+  async fetchAvailableCourses({ commit, state, rootState, dispatch }) {
     try {
       commit('SET_LOADING', true);
-      const user = rootState.auth.user;
+      
       // 获取所有课程
-      const response = await courseAPI.getCourses();
-      // 筛选出未选的课程
+      const allCourses = await dispatch('fetchAllCourses');
+      const user = rootState.auth.user;
+      
+      // 获取已选课程ID列表
       const enrolledCourseIds = state.enrolledCourses.map(course => course.id);
-      const availableCourses = response.data.courses.filter(course => 
-        !enrolledCourseIds.includes(course.id) && course.status === 'active'
+      
+      // 筛选出未选的活跃课程
+      const availableCourses = allCourses.filter(course => 
+        !enrolledCourseIds.includes(course.id) && 
+        course.status === 'active' && 
+        course.instructor_id !== user.id // 排除自己教授的课程
       );
+      
       commit('SET_AVAILABLE_COURSES', availableCourses);
       commit('SET_LOADING', false);
+      return availableCourses;
     } catch (error) {
       commit('SET_ERROR', error.response?.data?.message || '获取可选课程失败');
       commit('SET_LOADING', false);
@@ -176,6 +185,7 @@ const actions = {
       const response = await courseAPI.getCourse(courseId);
       commit('SET_CURRENT_COURSE', response.data.course);
       commit('SET_LOADING', false);
+      return response.data.course;
     } catch (error) {
       commit('SET_ERROR', error.response?.data?.message || '获取课程详情失败');
       commit('SET_LOADING', false);
@@ -184,10 +194,18 @@ const actions = {
   },
   
   // 创建新课程
-  async createCourse({ commit }, courseData) {
+  async createCourse({ commit, rootState }, courseData) {
     try {
       commit('SET_LOADING', true);
-      const response = await courseAPI.createCourse(courseData);
+      
+      // 确保设置教师ID为当前用户
+      const user = rootState.auth.user;
+      const newCourseData = {
+        ...courseData,
+        instructor_id: user.id
+      };
+      
+      const response = await courseAPI.createCourse(newCourseData);
       commit('ADD_COURSE', response.data.course);
       commit('SET_LOADING', false);
       return response.data.course;
@@ -234,6 +252,7 @@ const actions = {
       const response = await courseAPI.getCourseStudents(courseId);
       commit('SET_COURSE_STUDENTS', response.data.students);
       commit('SET_LOADING', false);
+      return response.data.students;
     } catch (error) {
       commit('SET_ERROR', error.response?.data?.message || '获取课程学生失败');
       commit('SET_LOADING', false);
@@ -241,17 +260,58 @@ const actions = {
     }
   },
   
-  // 添加学生到课程
-  async enrollStudent({ commit }, { courseId, userId }) {
+  // 学生选课
+  async enrollCourse({ commit, dispatch }, { courseId, userId }) {
     try {
       commit('SET_LOADING', true);
-      await courseAPI.enrollStudent(courseId, userId);
-      // 重新获取课程学生列表
-      const response = await courseAPI.getCourseStudents(courseId);
-      commit('SET_COURSE_STUDENTS', response.data.students);
+      const response = await courseAPI.enrollStudent(courseId, userId);
+      
+      // 选课成功后更新已选课程和可选课程列表
+      await dispatch('fetchEnrolledCourses');
+      await dispatch('fetchAvailableCourses');
+      
       commit('SET_LOADING', false);
+      return response.data;
     } catch (error) {
-      commit('SET_ERROR', error.response?.data?.message || '添加学生失败');
+      commit('SET_ERROR', error.response?.data?.message || '选课失败');
+      commit('SET_LOADING', false);
+      throw error;
+    }
+  },
+  
+  // 学生退选课程
+  async dropCourse({ commit, dispatch }, { courseId, userId }) {
+    try {
+      commit('SET_LOADING', true);
+      await courseAPI.dropStudent(courseId, userId);
+      
+      // 退选成功后更新已选课程和可选课程列表
+      await dispatch('fetchEnrolledCourses');
+      await dispatch('fetchAvailableCourses');
+      
+      commit('SET_LOADING', false);
+      return { success: true };
+    } catch (error) {
+      commit('SET_ERROR', error.response?.data?.message || '退选课程失败');
+      commit('SET_LOADING', false);
+      throw error;
+    }
+  },
+  
+  // 添加学生到课程
+  async enrollStudent({ commit, dispatch }, { courseId, userId }) {
+    try {
+      commit('SET_LOADING', true);
+      const response = await courseAPI.enrollStudent(courseId, userId);
+      
+      // 选课成功后更新已选课程和可选课程列表
+      await dispatch('fetchEnrolledCourses');
+      await dispatch('fetchAvailableCourses');
+      
+      commit('SET_LOADING', false);
+      return response.data;
+    } catch (error) {
+      commit('SET_ERROR', error.response?.data?.message || '选课失败');
       commit('SET_LOADING', false);
       throw error;
     }

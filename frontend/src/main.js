@@ -1,30 +1,38 @@
 import { createApp } from 'vue'
+import ElementPlus from 'element-plus'
+import 'element-plus/dist/index.css'
 import App from './App.vue'
 import router from './router'
 import store from './store'
-import ElementPlus from 'element-plus'
-import 'element-plus/dist/index.css'
 import axios from 'axios'
+import { setupErrorHandler } from './utils/errorHandler'
 
-// 配置axios默认值
+// 设置错误处理器
+setupErrorHandler();
+
+// 设置默认axios基础URL
 axios.defaults.baseURL = 'http://127.0.0.1:5000/api'
-axios.defaults.headers.common['Content-Type'] = 'application/json'
 
-// 添加请求拦截器
-axios.interceptors.request.use(config => {
-  const token = store.state.auth.token
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+// 添加请求拦截器，为每个请求添加token
+axios.interceptors.request.use(
+  config => {
+    const token = store.state.auth.token
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  },
+  error => {
+    return Promise.reject(error)
   }
-  return config
-})
+)
 
 // 添加响应拦截器
 axios.interceptors.response.use(
   response => response,
   error => {
     if (error.response && error.response.status === 401) {
-      // 未授权，可能需要重新登录
+      // 如果接收到401响应，则用户未授权
       store.dispatch('auth/logout')
       router.push('/login')
     }

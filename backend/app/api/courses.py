@@ -133,4 +133,40 @@ def get_course_students(course_id):
     return jsonify({
         'status': 'success',
         'students': [student.to_dict() for student in course.students]
+    })
+
+@api_bp.route('/courses/<int:course_id>/enroll/<int:user_id>', methods=['DELETE'])
+def drop_student(course_id, user_id):
+    """学生退选课程"""
+    course = Course.query.get_or_404(course_id)
+    user = User.query.get_or_404(user_id)
+    
+    if user not in course.students:
+        return jsonify({
+            'status': 'error',
+            'message': '学生未选修该课程'
+        }), 400
+    
+    course.students.remove(user)
+    db.session.commit()
+    
+    return jsonify({
+        'status': 'success',
+        'message': '学生成功退选课程'
+    })
+
+@api_bp.route('/users/<int:user_id>/courses', methods=['GET'])
+def get_user_courses(user_id):
+    """获取用户选修的所有课程"""
+    user = User.query.get_or_404(user_id)
+    
+    # 根据用户角色返回不同类型的课程
+    if user.role == 'teacher':
+        courses = Course.query.filter_by(instructor_id=user_id).all()
+    else:
+        courses = user.courses
+    
+    return jsonify({
+        'status': 'success',
+        'courses': [course.to_dict() for course in courses]
     }) 

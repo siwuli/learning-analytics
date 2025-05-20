@@ -71,6 +71,7 @@
                 <router-link :to="`/courses/${course.id}`">
                   <el-button type="primary" size="small">进入学习</el-button>
                 </router-link>
+                <el-button type="danger" size="small" @click="dropCourse(course)">退选</el-button>
               </div>
             </div>
           </el-card>
@@ -415,9 +416,20 @@ export default {
           cancelButtonText: '取消',
           type: 'warning'
         }
-      ).then(() => {
-        // 应该调用API移除学生
-        ElMessage.success('学生已从课程中移除')
+      ).then(async () => {
+        try {
+          await store.dispatch('courses/dropCourse', {
+            courseId: currentCourse.value.id,
+            userId: student.id
+          })
+          
+          // 刷新课程学生列表
+          await store.dispatch('courses/fetchCourseStudents', currentCourse.value.id)
+          
+          ElMessage.success('学生已从课程中移除')
+        } catch (error) {
+          ElMessage.error('移除学生失败: ' + error.message)
+        }
       }).catch(() => {
         // 取消操作
       })
@@ -434,16 +446,10 @@ export default {
         }
       ).then(async () => {
         try {
-          await store.dispatch('courses/enrollStudent', {
+          await store.dispatch('courses/enrollCourse', {
             courseId: course.id,
             userId: store.state.auth.user.id
           })
-          
-          // 刷新已选课程和可选课程列表
-          await Promise.all([
-            store.dispatch('courses/fetchEnrolledCourses'),
-            store.dispatch('courses/fetchAvailableCourses')
-          ])
           
           ElMessage.success('选课成功')
         } catch (error) {
@@ -451,6 +457,31 @@ export default {
         }
       }).catch(() => {
         // 取消选课
+      })
+    }
+    
+    const dropCourse = (course) => {
+      ElMessageBox.confirm(
+        `确定要退选课程 "${course.title}" 吗？`,
+        '确认退选',
+        {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      ).then(async () => {
+        try {
+          await store.dispatch('courses/dropCourse', {
+            courseId: course.id,
+            userId: store.state.auth.user.id
+          })
+          
+          ElMessage.success('退选成功')
+        } catch (error) {
+          ElMessage.error('退选失败: ' + error.message)
+        }
+      }).catch(() => {
+        // 取消退选
       })
     }
     
@@ -538,6 +569,7 @@ export default {
       addStudentToCourse,
       removeStudent,
       enrollCourse,
+      dropCourse,
       formatDate
     }
   }
