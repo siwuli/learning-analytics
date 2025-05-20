@@ -23,7 +23,7 @@
             <i class="el-icon-user"></i>
             <span>个人资料</span>
           </el-menu-item>
-          <el-menu-item @click="logout">
+          <el-menu-item @click="handleLogout">
             <i class="el-icon-switch-button"></i>
             <span>退出登录</span>
           </el-menu-item>
@@ -58,6 +58,7 @@
 import { computed } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 
 export default {
   name: 'App',
@@ -72,16 +73,23 @@ export default {
       return currentUser.value.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
     })
     
-    const logout = () => {
-      store.dispatch('auth/logout')
-      router.push('/login')
+    const handleLogout = async () => {
+      try {
+        await store.dispatch('auth/logout')
+        ElMessage.success('已成功退出登录')
+        // 强制导航到登录页面
+        router.push('/login')
+      } catch (error) {
+        console.error('退出登录失败', error)
+        ElMessage.error('退出登录失败')
+      }
     }
     
     return {
       isLoggedIn,
       currentUser,
       avatarUrl,
-      logout
+      handleLogout
     }
   }
 }

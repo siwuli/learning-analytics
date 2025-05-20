@@ -7,7 +7,7 @@ import 'element-plus/dist/index.css'
 import axios from 'axios'
 
 // 配置axios默认值
-axios.defaults.baseURL = 'http://localhost:5000/api'
+axios.defaults.baseURL = 'http://127.0.0.1:5000/api'
 axios.defaults.headers.common['Content-Type'] = 'application/json'
 
 // 添加请求拦截器

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { authAPI } from '../../services/api'
 
 // 初始状态
 const state = {
@@ -31,9 +32,8 @@ const actions = {
   // 登录
   async login({ commit, dispatch }, credentials) {
     try {
-      // 注意：这里应该调用真实的API，下面是模拟
-      // const response = await axios.post('/auth/login', credentials)
-      const response = { data: { token: 'fake-token', user: { id: 1, username: credentials.username, role: 'student' } } }
+      // 使用真实API
+      const response = await authAPI.login(credentials)
       
       // 保存令牌和用户信息
       const token = response.data.token
@@ -55,10 +55,8 @@ const actions = {
   // 注册
   async register({ commit, dispatch }, userData) {
     try {
-      // 注意：这里应该调用真实的API，下面是模拟
-      // const response = await axios.post('/auth/register', userData)
-      const response = { data: { message: '注册成功' } }
-      
+      // 使用真实API
+      const response = await authAPI.register(userData)
       return response
     } catch (error) {
       dispatch('setError', error.response?.data?.message || '注册失败', { root: true })
@@ -69,26 +67,59 @@ const actions = {
   // 获取当前用户信息
   async fetchCurrentUser({ commit, dispatch }) {
     try {
-      // 注意：这里应该调用真实的API，下面是模拟
-      // const response = await axios.get('/auth/me')
+      // 使用真实API
+      const response = await authAPI.getCurrentUser()
+      commit('SET_USER', response.data.user)
+      return response
+    } catch (error) {
+      // 如果获取用户信息失败，可能是令牌过期，尝试使用本地存储
       const user = JSON.parse(localStorage.getItem('user'))
       if (user) {
         commit('SET_USER', user)
+      } else {
+        dispatch('setError', error.response?.data?.message || '获取用户信息失败', { root: true })
+        throw error
       }
-    } catch (error) {
-      dispatch('setError', error.response?.data?.message || '获取用户信息失败', { root: true })
-      throw error
     }
   },
   
   // 退出登录
-  logout({ commit }) {
-    // 清除本地存储
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+  async logout({ commit }) {
+    let success = true;
     
-    // 更新状态
-    commit('LOGOUT')
+    try {
+      // 尝试调用登出API
+      await authAPI.logout().catch(err => console.warn('登出API调用失败:', err))
+    } catch (error) {
+      success = false;
+    } finally {
+      // 无论登出API是否成功，都清除本地存储
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      
+      // 更新状态
+      commit('LOGOUT')
+    }
+    
+    // 将返回语句移到finally块外部
+    return success ? Promise.resolve() : Promise.reject(new Error('退出登录失败'));
+  },
+  
+  // 更新用户资料
+  async updateUserProfile({ commit, dispatch }, { userId, userData }) {
+    try {
+      const response = await axios.put(`/users/${userId}`, userData)
+      
+      // 更新本地存储的用户信息
+      const updatedUser = response.data.user
+      localStorage.setItem('user', JSON.stringify(updatedUser))
+      commit('SET_USER', updatedUser)
+      
+      return response
+    } catch (error) {
+      dispatch('setError', error.response?.data?.message || '更新用户资料失败', { root: true })
+      throw error
+    }
   }
 }
 

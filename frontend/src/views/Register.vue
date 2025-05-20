@@ -4,7 +4,7 @@
       <template #header>
         <div class="register-header">
           <h2>学习分析平台</h2>
-          <p>创建您的账户</p>
+          <p>创建一个新账户</p>
         </div>
       </template>
       
@@ -26,10 +26,10 @@
         </el-form-item>
         
         <el-form-item label="角色" prop="role">
-          <el-select v-model="registerForm.role" placeholder="请选择角色">
-            <el-option label="学生" value="student"></el-option>
-            <el-option label="教师" value="teacher"></el-option>
-          </el-select>
+          <el-radio-group v-model="registerForm.role">
+            <el-radio label="student">学生</el-radio>
+            <el-radio label="teacher">教师</el-radio>
+          </el-radio-group>
         </el-form-item>
         
         <el-form-item>
@@ -38,7 +38,7 @@
       </el-form>
       
       <div class="register-actions">
-        <p>已有账户？<router-link to="/login">立即登录</router-link></p>
+        <p>已有账户？<router-link to="/login">返回登录</router-link></p>
       </div>
     </el-card>
   </div>
@@ -65,27 +65,6 @@ export default {
       role: 'student'
     })
     
-    const validatePass = (rule, value, callback) => {
-      if (value === '') {
-        callback(new Error('请输入密码'))
-      } else {
-        if (registerForm.confirmPassword !== '') {
-          registerFormRef.value.validateField('confirmPassword')
-        }
-        callback()
-      }
-    }
-    
-    const validatePass2 = (rule, value, callback) => {
-      if (value === '') {
-        callback(new Error('请再次输入密码'))
-      } else if (value !== registerForm.password) {
-        callback(new Error('两次输入密码不一致'))
-      } else {
-        callback()
-      }
-    }
-    
     const rules = {
       username: [
         { required: true, message: '请输入用户名', trigger: 'blur' },
@@ -96,11 +75,21 @@ export default {
         { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
       ],
       password: [
-        { required: true, validator: validatePass, trigger: 'blur' },
+        { required: true, message: '请输入密码', trigger: 'blur' },
         { min: 6, message: '密码长度不少于6个字符', trigger: 'blur' }
       ],
       confirmPassword: [
-        { required: true, validator: validatePass2, trigger: 'blur' }
+        { required: true, message: '请再次输入密码', trigger: 'blur' },
+        { 
+          validator: (rule, value, callback) => {
+            if (value !== registerForm.password) {
+              callback(new Error('两次输入的密码不一致'))
+            } else {
+              callback()
+            }
+          }, 
+          trigger: 'blur' 
+        }
       ],
       role: [
         { required: true, message: '请选择角色', trigger: 'change' }
@@ -115,7 +104,7 @@ export default {
           try {
             store.dispatch('setLoading', true)
             
-            // 提取注册信息，去除确认密码字段
+            // 准备注册数据，不包含确认密码字段
             const userData = {
               username: registerForm.username,
               email: registerForm.email,
@@ -127,7 +116,7 @@ export default {
             ElMessage.success('注册成功，请登录')
             router.push('/login')
           } catch (error) {
-            ElMessage.error(error.message || '注册失败，请稍后重试')
+            ElMessage.error(error.message || '注册失败，请稍后再试')
           } finally {
             store.dispatch('setLoading', false)
           }

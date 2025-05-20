@@ -18,8 +18,8 @@ def create_app(config_name='default'):
     db.init_app(app)
     migrate.init_app(app, db)
     
-    # 启用CORS
-    CORS(app)
+    # 启用CORS，允许所有来源的请求
+    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
     # 注册蓝图
     from .api import api_bp
