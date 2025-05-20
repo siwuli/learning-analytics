@@ -1,6 +1,6 @@
 from flask import jsonify, request
 from . import api_bp
-from ..models import Course, User
+from ..models import Course, User, CourseProgress
 from .. import db
 from datetime import datetime
 from sqlalchemy import or_
@@ -242,10 +242,21 @@ def get_user_courses(user_id):
     # 根据用户角色返回不同类型的课程
     if user.role == 'teacher':
         courses = Course.query.filter_by(instructor_id=user_id).all()
+        course_list = [course.to_dict() for course in courses]
     else:
         courses = user.enrolled_courses
+        course_list = []
+        for course in courses:
+            course_dict = course.to_dict()
+            # 查询该用户在该课程的进度
+            progress = CourseProgress.query.filter_by(user_id=user_id, course_id=course.id).first()
+            if progress:
+                course_dict['progress'] = progress.progress_percent
+            else:
+                course_dict['progress'] = 0
+            course_list.append(course_dict)
     
     return jsonify({
         'status': 'success',
-        'courses': [course.to_dict() for course in courses]
+        'courses': course_list
     }) 
