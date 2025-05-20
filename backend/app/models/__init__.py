@@ -6,4 +6,5 @@ from .resource import CourseSection, CourseResource
 from .progress import CourseProgress, ResourceProgress
 from .feedback import CourseReview
 from .assignment import Assignment, AssignmentSubmission
-from .discussion import Discussion, DiscussionReply 
+from .discussion import Discussion, DiscussionReply
+from .grade import GradeSetting, StudentGrade 

@@ -3,6 +3,7 @@ import auth from './modules/auth'
 import courses from './modules/courses'
 import activities from './modules/activities'
 import analytics from './modules/analytics'
+import grades from './modules/grades'
 
 export default createStore({
   state: {
@@ -44,6 +45,7 @@ export default createStore({
     auth,
     courses,
     activities,
-    analytics
+    analytics,
+    grades
   }
 }) 

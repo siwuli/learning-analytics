@@ -15,6 +15,10 @@
             <i class="el-icon-document"></i>
             <span>课程</span>
           </el-menu-item>
+          <el-menu-item index="/grades" v-if="isStudent">
+            <i class="el-icon-trophy"></i>
+            <span>我的成绩</span>
+          </el-menu-item>
           <el-menu-item index="/analytics">
             <i class="el-icon-s-data"></i>
             <span>数据分析</span>
@@ -68,6 +72,7 @@ export default {
     
     const isLoggedIn = computed(() => store.getters['auth/isLoggedIn'])
     const currentUser = computed(() => store.state.auth.user || {})
+    const isStudent = computed(() => currentUser.value.role === 'student')
     const avatarUrl = computed(() => {
       // 如果有用户头像，使用用户头像；否则使用默认头像
       return currentUser.value.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
@@ -88,6 +93,7 @@ export default {
     return {
       isLoggedIn,
       currentUser,
+      isStudent,
       avatarUrl,
       handleLogout
     }

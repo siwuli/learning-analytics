@@ -7,6 +7,8 @@ const Login = () => import('../views/Login.vue')
 const Register = () => import('../views/Register.vue')
 const Courses = () => import('../views/Courses.vue')
 const CourseDetail = () => import('../views/CourseDetail.vue')
+const CourseGrades = () => import('../views/CourseGrades.vue')
+const StudentGrades = () => import('../views/StudentGrades.vue')
 const Analytics = () => import('../views/Analytics.vue')
 const Profile = () => import('../views/Profile.vue')
 const NotFound = () => import('../views/NotFound.vue')
@@ -47,6 +49,18 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/courses/:id/grades',
+    name: 'CourseGrades',
+    component: CourseGrades,
+    meta: { requiresAuth: true, teacherOnly: true }
+  },
+  {
+    path: '/grades',
+    name: 'StudentGrades',
+    component: StudentGrades,
+    meta: { requiresAuth: true, studentOnly: true }
+  },
+  {
     path: '/analytics',
     name: 'Analytics',
     component: Analytics,
@@ -73,6 +87,7 @@ const router = createRouter({
 // 导航守卫
 router.beforeEach((to, from, next) => {
   const isLoggedIn = store.getters['auth/isLoggedIn']
+  const userRole = store.state.auth.user?.role
 
   // 如果路由需要认证但用户未登录，重定向到登录页面
   if (to.matched.some(record => record.meta.requiresAuth) && !isLoggedIn) {
@@ -80,6 +95,14 @@ router.beforeEach((to, from, next) => {
   } 
   // 如果用户已登录且尝试访问登录/注册页面，重定向到仪表板
   else if (isLoggedIn && (to.name === 'Login' || to.name === 'Register')) {
+    next({ name: 'Dashboard' })
+  }
+  // 如果路由仅限教师但用户不是教师，重定向到仪表板
+  else if (to.matched.some(record => record.meta.teacherOnly) && userRole !== 'teacher') {
+    next({ name: 'Dashboard' })
+  }
+  // 如果路由仅限学生但用户不是学生，重定向到仪表板
+  else if (to.matched.some(record => record.meta.studentOnly) && userRole !== 'student') {
     next({ name: 'Dashboard' })
   }
   else {

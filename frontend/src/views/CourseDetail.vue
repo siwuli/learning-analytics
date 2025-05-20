@@ -17,6 +17,15 @@
         </div>
         <p class="course-description">{{ currentCourse.description }}</p>
         
+        <!-- 教师成绩管理入口 -->
+        <div v-if="isTeacher" class="teacher-actions">
+          <router-link :to="`/courses/${currentCourse.id}/grades`">
+            <el-button type="primary">
+              <i class="el-icon-edit"></i> 管理成绩
+            </el-button>
+          </router-link>
+        </div>
+        
         <!-- 课程总进度 -->
         <div v-if="!isTeacher" class="course-progress">
           <div class="progress-header">
@@ -1683,5 +1692,15 @@ export default {
 
 .overdue-card .stat-value {
   color: #f56c6c;
+}
+
+.teacher-actions {
+  margin: 15px 0;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.teacher-actions .el-button {
+  margin-right: 10px;
 }
 </style> 

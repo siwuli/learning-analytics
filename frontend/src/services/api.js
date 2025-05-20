@@ -291,4 +291,42 @@ export const fileAPI = {
       }
     });
   }
+};
+
+// 成绩相关API
+export const gradeAPI = {
+  // 获取课程成绩设置
+  getGradeSettings(courseId) {
+    return axios.get(`/courses/${courseId}/grade-settings`);
+  },
+  
+  // 更新课程成绩设置
+  updateGradeSettings(courseId, settingsData) {
+    return axios.put(`/courses/${courseId}/grade-settings`, settingsData);
+  },
+  
+  // 获取学生在指定课程中的成绩
+  getStudentGrade(courseId, studentId) {
+    return axios.get(`/courses/${courseId}/students/${studentId}/grades`);
+  },
+  
+  // 更新学生成绩
+  updateStudentGrade(courseId, studentId, gradeData) {
+    return axios.put(`/courses/${courseId}/students/${studentId}/grades`, gradeData);
+  },
+  
+  // 获取课程所有学生的成绩
+  getCourseGrades(courseId) {
+    return axios.get(`/courses/${courseId}/grades`);
+  },
+  
+  // 批量更新学生成绩
+  batchUpdateGrades(courseId, gradesData) {
+    return axios.post(`/courses/${courseId}/grades/batch`, gradesData);
+  },
+  
+  // 获取用户在所有课程中的成绩
+  getUserGrades(userId) {
+    return axios.get(`/users/${userId}/grades`);
+  }
 }; 
