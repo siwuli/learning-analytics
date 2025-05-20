@@ -270,6 +270,14 @@ export const analyticsAPI = {
   
   getSystemOverview() {
     return axios.get('/analytics/overview');
+  },
+  
+  getStudentLearningAnalytics(userId) {
+    return axios.get(`/analytics/student-learning/${userId}`);
+  },
+  
+  getClassPerformanceAnalytics(courseId) {
+    return axios.get(`/analytics/class-performance/${courseId}`);
   }
 };
 

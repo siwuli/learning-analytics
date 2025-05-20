@@ -86,26 +86,34 @@ const router = createRouter({
 
 // 导航守卫
 router.beforeEach((to, from, next) => {
+  console.log('路由变化:', from.path, '->', to.path)
+  console.log('当前用户状态:', store.getters['auth/isLoggedIn'], store.state.auth.user)
+  
   const isLoggedIn = store.getters['auth/isLoggedIn']
   const userRole = store.state.auth.user?.role
 
   // 如果路由需要认证但用户未登录，重定向到登录页面
   if (to.matched.some(record => record.meta.requiresAuth) && !isLoggedIn) {
+    console.log('需要认证但未登录，重定向到登录页面')
     next({ name: 'Login' })
   } 
   // 如果用户已登录且尝试访问登录/注册页面，重定向到仪表板
   else if (isLoggedIn && (to.name === 'Login' || to.name === 'Register')) {
+    console.log('已登录用户尝试访问登录/注册页面，重定向到仪表板')
     next({ name: 'Dashboard' })
   }
   // 如果路由仅限教师但用户不是教师，重定向到仪表板
   else if (to.matched.some(record => record.meta.teacherOnly) && userRole !== 'teacher') {
+    console.log('路由仅限教师但用户不是教师，重定向到仪表板')
     next({ name: 'Dashboard' })
   }
   // 如果路由仅限学生但用户不是学生，重定向到仪表板
   else if (to.matched.some(record => record.meta.studentOnly) && userRole !== 'student') {
+    console.log('路由仅限学生但用户不是学生，重定向到仪表板')
     next({ name: 'Dashboard' })
   }
   else {
+    console.log('允许访问路由:', to.path)
     next()
   }
 })
