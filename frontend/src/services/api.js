@@ -68,6 +68,14 @@ export const courseAPI = {
     return axios.delete(`/courses/${courseId}/enroll/${userId}`);
   },
   
+  batchEnrollStudents(courseId, data) {
+    return axios.post(`/courses/${courseId}/batch-enroll`, data);
+  },
+  
+  searchNotEnrolledStudents(courseId, query = '') {
+    return axios.get(`/courses/${courseId}/students/search?q=${query}`);
+  },
+  
   getEnrolledCourses(userId) {
     return axios.get(`/users/${userId}/courses`);
   },
@@ -134,6 +142,83 @@ export const courseAPI = {
   
   updateCourseProgress(userId, courseId, progressData) {
     return axios.put(`/users/${userId}/courses/${courseId}/progress`, progressData);
+  },
+  
+  // 作业相关方法
+  getCourseAssignments(courseId) {
+    return axios.get(`/courses/${courseId}/assignments`);
+  },
+  
+  getCourseAssignment(courseId, assignmentId) {
+    return axios.get(`/courses/${courseId}/assignments/${assignmentId}`);
+  },
+  
+  createCourseAssignment(courseId, assignmentData) {
+    return axios.post(`/courses/${courseId}/assignments`, assignmentData);
+  },
+  
+  updateCourseAssignment(courseId, assignmentId, assignmentData) {
+    return axios.put(`/courses/${courseId}/assignments/${assignmentId}`, assignmentData);
+  },
+  
+  deleteCourseAssignment(courseId, assignmentId) {
+    return axios.delete(`/courses/${courseId}/assignments/${assignmentId}`);
+  },
+  
+  // 作业提交相关方法
+  getAssignmentSubmissions(courseId, assignmentId) {
+    return axios.get(`/courses/${courseId}/assignments/${assignmentId}/submissions`);
+  },
+  
+  getUserAssignmentSubmission(courseId, assignmentId, userId) {
+    return axios.get(`/courses/${courseId}/assignments/${assignmentId}/submissions/${userId}`);
+  },
+  
+  submitAssignment(courseId, assignmentId, submissionData) {
+    return axios.post(`/courses/${courseId}/assignments/${assignmentId}/submissions`, submissionData);
+  },
+  
+  updateSubmission(courseId, assignmentId, submissionId, submissionData) {
+    return axios.put(`/courses/${courseId}/assignments/${assignmentId}/submissions/${submissionId}`, submissionData);
+  },
+  
+  // 教师评分相关方法
+  gradeAssignment(courseId, assignmentId, submissionId, gradeData) {
+    return axios.post(`/courses/${courseId}/assignments/${assignmentId}/submissions/${submissionId}/grade`, gradeData);
+  },
+  
+  // 课程讨论相关方法
+  getCourseDiscussions(courseId) {
+    return axios.get(`/courses/${courseId}/discussions`);
+  },
+  
+  getCourseDiscussion(courseId, discussionId) {
+    return axios.get(`/courses/${courseId}/discussions/${discussionId}`);
+  },
+  
+  createCourseDiscussion(courseId, discussionData) {
+    return axios.post(`/courses/${courseId}/discussions`, discussionData);
+  },
+  
+  updateCourseDiscussion(courseId, discussionId, discussionData) {
+    return axios.put(`/courses/${courseId}/discussions/${discussionId}`, discussionData);
+  },
+  
+  deleteCourseDiscussion(courseId, discussionId) {
+    return axios.delete(`/courses/${courseId}/discussions/${discussionId}`);
+  },
+  
+  // 讨论回复相关方法
+  createDiscussionReply(courseId, discussionId, replyData) {
+    return axios.post(`/courses/${courseId}/discussions/${discussionId}/replies`, replyData);
+  },
+  
+  updateDiscussionReply(replyId, replyData) {
+    return axios.put(`/discussions/replies/${replyId}`, replyData);
+  },
+  
+  deleteDiscussionReply(replyId) {
+    return axios.delete(`/discussions/replies/${replyId}`);
   }
 };
 

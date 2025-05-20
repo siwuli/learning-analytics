@@ -15,7 +15,7 @@ class User(db.Model):
 
     # 关系
     activities = db.relationship('Activity', backref='user', lazy='dynamic')
-    courses = db.relationship('Course', secondary='course_enrollments', backref=db.backref('students', lazy='dynamic'))
+    # 课程关系在Course模型中通过backref定义
 
     def __repr__(self):
         return f'<User {self.username}>'

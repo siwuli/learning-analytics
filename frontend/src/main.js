@@ -35,6 +35,14 @@ axios.interceptors.response.use(
       // 如果接收到401响应，则用户未授权
       store.dispatch('auth/logout')
       router.push('/login')
+    } else if (error.response && error.response.status === 404) {
+      // 对于404错误，记录在控制台但不显示错误通知
+      console.warn('API不存在:', error.config.url)
+      return Promise.reject({
+        ...error,
+        isApiNotFound: true,
+        message: 'API不存在'
+      })
     }
     return Promise.reject(error)
   }
