@@ -56,10 +56,7 @@
           :md="8" 
           :lg="6"
         >
-          <el-card class="course-card" :body-style="{ padding: '0px' }">
-            <div class="course-image">
-              <img :src="course.coverImage || 'https://via.placeholder.com/300x160?text=课程封面'" alt="课程封面">
-            </div>
+          <el-card class="course-card">
             <div class="course-info">
               <div class="course-title">{{ course.title }}</div>
               <div class="course-description">{{ course.description }}</div>
@@ -605,13 +602,11 @@ export default {
 
 .course-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
 }
 
-.course-image img {
-  width: 100%;
-  height: 160px;
-  object-fit: cover;
+.course-image {
+  display: none;
 }
 
 .course-info {
@@ -619,19 +614,22 @@ export default {
 }
 
 .course-title {
-  font-size: 18px;
   font-weight: bold;
+  font-size: 18px;
   margin-bottom: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .course-description {
-  color: #606266;
+  color: #666;
   margin-bottom: 15px;
-  height: 40px;
+  min-height: 60px;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
 }
 

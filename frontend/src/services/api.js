@@ -219,6 +219,11 @@ export const courseAPI = {
   
   deleteDiscussionReply(replyId) {
     return axios.delete(`/discussions/replies/${replyId}`);
+  },
+  
+  // 讨论置顶
+  toggleDiscussionPinned(courseId, discussionId) {
+    return axios.post(`/courses/${courseId}/discussions/${discussionId}/toggle-pin`);
   }
 };
 
@@ -257,5 +262,25 @@ export const analyticsAPI = {
   
   getSystemOverview() {
     return axios.get('/analytics/overview');
+  }
+};
+
+// 文件上传API
+export const fileAPI = {
+  uploadFile(file, onProgress) {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    return axios.post('/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      onUploadProgress: progressEvent => {
+        if (onProgress) {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(percentCompleted);
+        }
+      }
+    });
   }
 }; 

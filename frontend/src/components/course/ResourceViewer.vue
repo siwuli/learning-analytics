@@ -87,6 +87,23 @@
         </div>
       </div>
       
+      <!-- 文件类型资源 -->
+      <div v-else-if="resource.resource_type === 'file'" class="file-resource">
+        <h3>文件资源</h3>
+        <div class="file-info">
+          <el-icon><Document /></el-icon>
+          <div class="file-name">
+            {{ getFileName(resource.file_path) }}
+          </div>
+          <el-button type="primary" @click="downloadFile" size="small">
+            <el-icon><Download /></el-icon> 下载文件
+          </el-button>
+        </div>
+        <div class="file-description">
+          {{ resource.description }}
+        </div>
+      </div>
+      
       <!-- 其他类型资源 -->
       <div v-else class="unknown-resource-type">
         未知资源类型
@@ -106,8 +123,9 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ElMessage, ElIcon } from 'element-plus'
+import { Document, Download } from '@element-plus/icons-vue'
 import { marked } from 'marked'
 import { useStore } from 'vuex'
 import SafeVideoPlayer from '../common/SafeVideoPlayer.vue'
@@ -116,7 +134,10 @@ import { courseAPI } from '@/services/api'
 export default {
   name: 'ResourceViewer',
   components: {
-    SafeVideoPlayer
+    SafeVideoPlayer,
+    ElIcon,
+    Document,
+    Download
   },
   props: {
     resource: {
@@ -178,6 +199,7 @@ export default {
         case 'video': return 'success'
         case 'quiz': return 'warning'
         case 'assignment': return 'danger'
+        case 'file': return 'info'
         default: return 'info'
       }
     }
@@ -189,6 +211,7 @@ export default {
         case 'video': return '视频'
         case 'quiz': return '测验'
         case 'assignment': return '作业'
+        case 'file': return '文件'
         default: return '其他'
       }
     }
@@ -262,6 +285,37 @@ export default {
       }
     }
     
+    // 获取文件名
+    const getFileName = (filePath) => {
+      if (!filePath) return '未知文件';
+      // 解析文件名，格式是 uuid_filename
+      const parts = filePath.split('/');
+      const filename = parts[parts.length - 1];
+      const nameParts = filename.split('_');
+      // 如果有UUID前缀，去掉它
+      if (nameParts.length > 1) {
+        return nameParts.slice(1).join('_');
+      }
+      return filename;
+    };
+
+    // 处理文件下载
+    const downloadFile = () => {
+      if (!props.resource.content) {
+        ElMessage.error('文件链接不可用');
+        return;
+      }
+      
+      // 创建一个临时链接并点击它来下载
+      const link = document.createElement('a');
+      link.href = props.resource.content;
+      link.target = '_blank';
+      link.download = getFileName(props.resource.file_path);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+    
     onMounted(() => {
       parseResourceContent()
     })
@@ -281,7 +335,9 @@ export default {
       submitQuiz,
       handleFileChange,
       submitAssignment,
-      toggleCompleted
+      toggleCompleted,
+      getFileName,
+      downloadFile
     }
   }
 }
@@ -371,5 +427,44 @@ export default {
   margin-top: 30px;
   display: flex;
   justify-content: center;
+}
+
+.file-resource {
+  padding: 20px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  margin: 15px 0;
+  padding: 10px;
+  background-color: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.file-info .el-icon {
+  font-size: 24px;
+  color: #409EFF;
+  margin-right: 10px;
+}
+
+.file-name {
+  flex: 1;
+  font-weight: 500;
+  margin-right: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-description {
+  margin-top: 15px;
+  color: #606266;
+  line-height: 1.6;
+  white-space: pre-wrap;
 }
 </style> 

@@ -45,8 +45,9 @@ class CourseResource(db.Model):
     section_id = db.Column(db.Integer, db.ForeignKey('course_sections.id'), nullable=False)
     title = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
-    resource_type = db.Column(db.String(50), nullable=False)  # document, video, quiz, assignment
+    resource_type = db.Column(db.String(50), nullable=False)  # document, video, file
     content = db.Column(db.Text)  # 内容或资源URL
+    file_path = db.Column(db.String(255))  # 文件存储路径
     data_json = db.Column(db.JSON)  # 其他元数据
     order = db.Column(db.Integer, default=0)  # 资源顺序
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -63,6 +64,7 @@ class CourseResource(db.Model):
             'description': self.description,
             'resource_type': self.resource_type,
             'content': self.content,
+            'file_path': self.file_path,
             'metadata': self.data_json,
             'order': self.order,
             'created_at': self.created_at.isoformat() if self.created_at else None,

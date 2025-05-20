@@ -1,7 +1,67 @@
-from flask import jsonify, request
+from flask import jsonify, request, url_for, current_app
 from . import api_bp
-from ..models import CourseSection, CourseResource, Course
+from ..models import CourseSection, CourseResource, Course, ResourceProgress
 from .. import db
+import os
+from werkzeug.utils import secure_filename
+import uuid
+
+# 允许的文件类型
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'zip', 'rar', 'jpg', 'jpeg', 'png'}
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@api_bp.route('/upload', methods=['POST'])
+def upload_file():
+    """处理文件上传"""
+    # 检查是否有文件
+    if 'file' not in request.files:
+        return jsonify({
+            'status': 'error',
+            'message': '没有找到文件'
+        }), 400
+        
+    file = request.files['file']
+    
+    # 检查文件名是否为空
+    if file.filename == '':
+        return jsonify({
+            'status': 'error',
+            'message': '没有选择文件'
+        }), 400
+        
+    # 检查文件类型
+    if not allowed_file(file.filename):
+        return jsonify({
+            'status': 'error',
+            'message': '不支持的文件类型'
+        }), 400
+        
+    # 安全处理文件名
+    original_filename = secure_filename(file.filename)
+    # 使用UUID生成唯一文件名，保留原始扩展名
+    filename = f"{uuid.uuid4().hex}_{original_filename}"
+    
+    # 确保上传目录存在
+    upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
+    os.makedirs(upload_folder, exist_ok=True)
+    
+    # 保存文件
+    file_path = os.path.join(upload_folder, filename)
+    file.save(file_path)
+    
+    # 生成文件URL
+    file_url = url_for('static', filename=f'uploads/{filename}', _external=True)
+    
+    return jsonify({
+        'status': 'success',
+        'message': '文件上传成功',
+        'file_path': f'uploads/{filename}',
+        'file_url': file_url,
+        'original_filename': original_filename
+    })
 
 @api_bp.route('/courses/<int:course_id>/sections', methods=['GET'])
 def get_course_sections(course_id):
@@ -125,6 +185,7 @@ def create_section_resource(section_id):
         description=data.get('description'),
         resource_type=data.get('resource_type'),
         content=data.get('content'),
+        file_path=data.get('file_path'),  # 添加文件路径
         data_json=data.get('metadata', {}),
         order=max_order + 1
     )
@@ -152,6 +213,8 @@ def update_section_resource(section_id, resource_id):
         resource.resource_type = data['resource_type']
     if 'content' in data:
         resource.content = data['content']
+    if 'file_path' in data:
+        resource.file_path = data['file_path']  # 更新文件路径
     if 'metadata' in data:
         # 合并现有元数据和新元数据
         current_metadata = resource.data_json or {}
@@ -172,6 +235,9 @@ def update_section_resource(section_id, resource_id):
 def delete_section_resource(section_id, resource_id):
     """删除章节资源"""
     resource = CourseResource.query.filter_by(id=resource_id, section_id=section_id).first_or_404()
+    
+    # 首先删除与该资源相关的所有进度记录
+    ResourceProgress.query.filter_by(resource_id=resource_id).delete()
     
     db.session.delete(resource)
     db.session.commit()

@@ -128,11 +128,27 @@
       <div v-loading="loadingDetail" class="discussion-detail">
         <div v-if="currentDiscussion.id" class="discussion-content">
           <div class="author-info">
-            <span class="author-name">
-              {{ currentDiscussion.user?.username }}
-              <el-tag v-if="currentDiscussion.user?.role === 'teacher'" size="small" type="success">教师</el-tag>
-            </span>
-            <span class="post-time">{{ formatDate(currentDiscussion.created_at) }}</span>
+            <div class="author-name-wrapper">
+              <span class="author-name">
+                {{ currentDiscussion.user?.username }}
+                <el-tag v-if="currentDiscussion.user?.role === 'teacher'" size="small" type="success">教师</el-tag>
+              </span>
+              <span class="post-time">{{ formatDate(currentDiscussion.created_at) }}</span>
+            </div>
+            
+            <!-- 教师操作按钮 -->
+            <div v-if="isTeacher" class="teacher-actions">
+              <el-tooltip :content="currentDiscussion.is_pinned ? '取消置顶' : '设为置顶'" placement="top">
+                <el-button 
+                  :type="currentDiscussion.is_pinned ? 'warning' : 'default'"
+                  size="small" 
+                  circle
+                  @click="togglePinned(currentDiscussion)"
+                >
+                  <el-icon><Top /></el-icon>
+                </el-button>
+              </el-tooltip>
+            </div>
           </div>
           
           <div class="content-text">
@@ -417,6 +433,22 @@ export default {
       }
     }
     
+    // 切换置顶状态
+    const togglePinned = async (discussion) => {
+      if (!discussion.id) return
+      
+      try {
+        await courseAPI.toggleDiscussionPinned(props.courseId, discussion.id)
+        
+        // 重新加载讨论列表
+        await loadDiscussions()
+        ElMessage.success('讨论置顶状态已更新')
+      } catch (error) {
+        console.error('更新讨论置顶状态失败:', error)
+        ElMessage.error('更新讨论置顶状态失败')
+      }
+    }
+    
     onMounted(() => {
       loadDiscussions()
     })
@@ -442,7 +474,8 @@ export default {
       showCreateDiscussionDialog,
       createDiscussion,
       viewDiscussion,
-      submitReply
+      submitReply,
+      togglePinned
     }
   }
 }
@@ -537,11 +570,19 @@ export default {
   margin-bottom: 10px;
 }
 
-.author-name {
-  font-weight: bold;
+.author-name-wrapper {
   display: flex;
   align-items: center;
   gap: 5px;
+}
+
+.author-name {
+  font-weight: bold;
+}
+
+.post-time {
+  font-size: 13px;
+  color: #909399;
 }
 
 .content-text {
@@ -593,5 +634,11 @@ export default {
   text-align: center;
   color: #909399;
   padding: 20px 0;
+}
+
+.teacher-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 </style> 

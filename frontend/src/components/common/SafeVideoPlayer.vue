@@ -1,8 +1,18 @@
 <template>
   <div class="safe-video-container">
     <div class="video-wrapper" ref="videoWrapper">
+      <!-- 嵌入式iframe播放器，用于bilibili等平台 -->
+      <div v-if="isEmbeddedVideo" class="embed-container">
+        <iframe
+          class="embedded-video"
+          :src="embedUrl"
+          frameborder="0"
+          allowfullscreen
+        ></iframe>
+      </div>
+      <!-- 直接视频链接播放器 -->
       <video
-        v-if="videoUrl"
+        v-else-if="videoUrl"
         ref="videoPlayer"
         class="video-element"
         controls
@@ -29,7 +39,7 @@
 </template>
 
 <script>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { ElIcon } from 'element-plus'
 import { Loading, Warning } from '@element-plus/icons-vue'
 
@@ -54,6 +64,47 @@ export default {
     const error = ref('')
     const isLoaded = ref(false)
     
+    // 判断是否为嵌入式视频
+    const isEmbeddedVideo = computed(() => {
+      const url = props.src.toLowerCase();
+      return url.includes('bilibili.com') || 
+             url.includes('youku.com') || 
+             url.includes('iqiyi.com') ||
+             url.includes('player.bilibili') ||
+             (url.includes('iframe') && url.includes('src='));
+    });
+    
+    // 生成嵌入URL
+    const embedUrl = computed(() => {
+      const url = props.src;
+      
+      // 如果是B站视频
+      if(url.includes('bilibili.com/video/')) {
+        // 提取B站视频ID (例如: BV1xx411c7mD)
+        const bvMatch = url.match(/\/video\/([^/?]+)/);
+        const bvid = bvMatch ? bvMatch[1] : '';
+        if(bvid) {
+          return `https://player.bilibili.com/player.html?bvid=${bvid}&high_quality=1&danmaku=0`;
+        }
+      }
+      
+      // 如果是已经格式化好的iframe地址
+      if(url.includes('player.bilibili.com') || 
+         url.includes('player.youku.com') || 
+         url.includes('player.iqiyi.com')) {
+        return url;
+      }
+      
+      // 如果是iframe代码
+      const iframeMatch = url.match(/src=["']([^"']+)["']/);
+      if(iframeMatch) {
+        return iframeMatch[1];
+      }
+      
+      // 默认返回原始URL
+      return url;
+    });
+    
     // 处理视频加载
     const loadVideo = () => {
       error.value = ''
@@ -62,6 +113,11 @@ export default {
       if (!props.src) {
         error.value = '无效的视频链接'
         return
+      }
+      
+      // 如果是嵌入式视频，不需要额外处理
+      if (isEmbeddedVideo.value) {
+        return;
       }
       
       // 检查是否为有效的视频URL
@@ -111,7 +167,7 @@ export default {
       // 延迟加载，避免立即触发ResizeObserver
       setTimeout(() => {
         // 如果视频未成功加载，尝试刷新
-        if (videoPlayer.value && !isLoaded.value) {
+        if (videoPlayer.value && !isLoaded.value && !isEmbeddedVideo.value) {
           videoPlayer.value.load()
         }
       }, 500)
@@ -122,6 +178,8 @@ export default {
       videoPlayer,
       videoUrl,
       error,
+      isEmbeddedVideo,
+      embedUrl,
       handleVideoLoaded,
       handleTimeUpdate,
       handleVideoError
@@ -180,5 +238,19 @@ export default {
 
 .error-url {
   margin-top: 12px;
+}
+
+.embed-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.embedded-video {
+  width: 100%;
+  height: 100%;
+  border: none;
 }
 </style> 

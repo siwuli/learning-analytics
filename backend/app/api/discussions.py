@@ -177,4 +177,21 @@ def delete_discussion_reply(reply_id):
     return jsonify({
         'status': 'success',
         'message': '回复删除成功'
+    })
+
+@api_bp.route('/courses/<int:course_id>/discussions/<int:discussion_id>/toggle-pin', methods=['POST'])
+def toggle_discussion_pin(course_id, discussion_id):
+    """切换讨论置顶状态"""
+    # 获取讨论
+    discussion = Discussion.query.filter_by(id=discussion_id, course_id=course_id).first_or_404()
+    
+    # 切换置顶状态
+    discussion.is_pinned = not discussion.is_pinned
+    
+    db.session.commit()
+    
+    return jsonify({
+        'status': 'success',
+        'message': '讨论置顶状态已更新',
+        'is_pinned': discussion.is_pinned
     }) 

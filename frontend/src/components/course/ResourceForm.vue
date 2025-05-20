@@ -23,8 +23,7 @@
       <el-select v-model="form.resource_type" placeholder="请选择资源类型" style="width: 100%">
         <el-option label="文档" value="document"></el-option>
         <el-option label="视频" value="video"></el-option>
-        <el-option label="测验" value="quiz"></el-option>
-        <el-option label="作业" value="assignment"></el-option>
+        <el-option label="文件" value="file"></el-option>
       </el-select>
     </el-form-item>
     
@@ -57,97 +56,24 @@
         </el-form-item>
       </template>
       
-      <template v-else-if="form.resource_type === 'quiz' && !form.isTypeChanging">
-        <el-divider content-position="left">测验题目</el-divider>
-        
-        <div v-for="(question, index) in quizQuestions" :key="index" class="quiz-question">
-          <el-card>
-            <div class="question-header">
-              <h4>问题 {{ index + 1 }}</h4>
-              <el-button 
-                type="danger" 
-                size="small" 
-                icon="Delete"
-                circle
-                @click="removeQuestion(index)"
-              ></el-button>
-            </div>
-            
-            <el-form-item :label="`问题${index + 1}标题`" :prop="`quizQuestions.${index}.question`">
-              <el-input 
-                v-model="question.question" 
-                placeholder="请输入问题"
-              ></el-input>
-            </el-form-item>
-            
-            <div class="question-options">
-              <div v-for="(option, optIndex) in question.options" :key="optIndex" class="option-item">
-                <el-input 
-                  v-model="question.options[optIndex]" 
-                  placeholder="选项内容"
-                >
-                  <template #prepend>
-                    <el-radio 
-                      v-model="question.answer" 
-                      :label="optIndex"
-                      @change="() => {}"
-                    ></el-radio>
-                  </template>
-                  <template #append>
-                    <el-button 
-                      type="danger" 
-                      icon="Delete"
-                      @click="removeOption(index, optIndex)"
-                    ></el-button>
-                  </template>
-                </el-input>
-              </div>
-            </div>
-            
-            <el-button 
-              type="success" 
-              size="small" 
-              @click="addOption(index)"
-            >
-              添加选项
-            </el-button>
-          </el-card>
-        </div>
-        
-        <div class="add-question">
-          <el-button 
-            type="primary" 
-            @click="addQuestion"
+      <template v-else-if="form.resource_type === 'file' && !form.isTypeChanging">
+        <el-form-item label="上传文件" prop="file">
+          <el-upload
+            class="resource-file-upload"
+            action="#"
+            :auto-upload="false"
+            :on-change="handleFileChange"
+            :on-remove="handleFileRemove"
+            :file-list="fileList"
+            :limit="1"
           >
-            添加问题
-          </el-button>
-        </div>
-      </template>
-      
-      <template v-else-if="form.resource_type === 'assignment' && !form.isTypeChanging">
-        <el-form-item label="作业标题" prop="assignmentTitle">
-          <el-input 
-            v-model="assignmentData.title" 
-            placeholder="请输入作业标题"
-          ></el-input>
-        </el-form-item>
-        
-        <el-form-item label="作业描述" prop="assignmentDescription">
-          <el-input
-            v-model="assignmentData.description"
-            type="textarea"
-            :rows="5"
-            placeholder="请输入作业描述和要求"
-          ></el-input>
-        </el-form-item>
-        
-        <el-form-item label="截止日期" prop="assignmentDueDate">
-          <el-date-picker 
-            v-model="assignmentData.due_date" 
-            type="date" 
-            placeholder="选择截止日期"
-            style="width: 100%"
-          ></el-date-picker>
+            <el-button type="primary">选择文件</el-button>
+            <template #tip>
+              <div class="el-upload__tip">
+                支持PDF、Word、PPT、Excel、图片等格式，文件大小不超过50MB
+              </div>
+            </template>
+          </el-upload>
         </el-form-item>
       </template>
     </div>
@@ -157,7 +83,7 @@
     </el-form-item>
     
     <el-form-item>
-      <el-button type="primary" @click="submitForm">保存</el-button>
+      <el-button type="primary" @click="submitForm" :loading="submitting">保存</el-button>
       <el-button @click="resetForm">重置</el-button>
     </el-form-item>
   </el-form>
@@ -168,6 +94,7 @@ import { ref, reactive, computed, watch, onMounted, nextTick, onBeforeUnmount } 
 import { ElMessage, ElIcon } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import { createSafeResizeObserver } from '../../utils/resizeUtil'
+import { fileAPI } from '@/services/api'
 
 export default {
   name: 'ResourceForm',
@@ -188,19 +115,16 @@ export default {
   emits: ['submit', 'cancel'],
   setup(props, { emit }) {
     const formRef = ref(null)
+    const submitting = ref(false)
     
     // 用于防止ResizeObserver循环错误
     const resizeObserver = ref(null)
     
-    // 测验问题
-    const quizQuestions = ref([])
-    
-    // 作业数据
-    const assignmentData = reactive({
-      title: '',
-      description: '',
-      due_date: ''
-    })
+    // 文件上传相关
+    const fileList = ref([])
+    const selectedFile = ref(null)
+    const uploadProgress = ref(0)
+    const isUploading = ref(false)
     
     // 表单数据
     const form = reactive({
@@ -208,45 +132,50 @@ export default {
       description: props.resource.description || '',
       resource_type: props.resource.resource_type || 'document',
       content: props.resource.content || '',
+      file_path: props.resource.file_path || '',
       order: props.resource.order || 1,
       isTypeChanging: false
     })
     
-    // 初始化测验数据
-    const initQuizData = () => {
-      if (form.resource_type === 'quiz' && form.content) {
-        try {
-          const quizData = JSON.parse(form.content)
-          quizQuestions.value = quizData.questions || []
-        } catch (e) {
-          console.error('解析测验数据失败', e)
-          quizQuestions.value = [{
-            question: '',
-            options: ['', ''],
-            answer: 0
-          }]
+    // 初始化文件列表
+    if (props.resource.file_path && props.resource.resource_type === 'file') {
+      const filename = props.resource.file_path.split('_').slice(1).join('_');
+      fileList.value = [
+        { 
+          name: filename || '已上传文件',
+          url: props.resource.content || ''
         }
-      } else {
-        quizQuestions.value = [{
-          question: '',
-          options: ['', ''],
-          answer: 0
-        }]
-      }
+      ];
     }
     
-    // 初始化作业数据
-    const initAssignmentData = () => {
-      if (form.resource_type === 'assignment' && form.content) {
-        try {
-          const data = JSON.parse(form.content)
-          assignmentData.title = data.title || ''
-          assignmentData.description = data.description || ''
-          assignmentData.due_date = data.due_date || ''
-        } catch (e) {
-          console.error('解析作业数据失败', e)
+    // 表单验证规则
+    const rules = {
+      title: [
+        { required: true, message: '请输入资源标题', trigger: 'blur' },
+        { min: 2, max: 100, message: '长度在2到100个字符之间', trigger: 'blur' }
+      ],
+      description: [
+        { required: true, message: '请输入资源描述', trigger: 'blur' }
+      ],
+      resource_type: [
+        { required: true, message: '请选择资源类型', trigger: 'change' }
+      ],
+      content: [
+        { 
+          required: true, 
+          message: '请输入资源内容', 
+          trigger: 'blur',
+          validator: (rule, value, callback) => {
+            if (form.resource_type === 'file' && !form.file_path && !selectedFile.value) {
+              callback(new Error('请上传文件'));
+            } else if ((form.resource_type === 'document' || form.resource_type === 'video') && !value) {
+              callback(new Error('请输入资源内容'));
+            } else {
+              callback();
+            }
+          }
         }
-      }
+      ]
     }
     
     // 优化资源类型切换处理，防止ResizeObserver错误
@@ -258,68 +187,38 @@ export default {
           resizeObserver.value = null;
         }
         
-        // 标记正在切换状态，以减少不必要的重渲染
+        // 标记正在切换状态
         form.isTypeChanging = true;
         
-        // 使用nextTick等待DOM更新
+        // 等待DOM更新
         await nextTick();
         
-        // 视频类型切换需要特殊处理
-        if (oldType === 'video' || newType === 'video') {
-          // 延迟初始化以避免ResizeObserver错误
-          setTimeout(() => {
-            // 重置内容字段，避免不同类型间的内容混淆
-            if (oldType !== newType) {
-              form.content = '';
-            }
-            
-            // 根据新类型初始化相应数据
-            if (newType === 'quiz') {
-              initQuizData();
-            } else if (newType === 'assignment') {
-              initAssignmentData();
-            }
-            
-            // 延迟结束加载状态，确保DOM完全更新
-            setTimeout(() => {
-              form.isTypeChanging = false;
-              
-              // 安全地设置新的ResizeObserver
-              nextTick().then(() => {
-                setTimeout(setupResizeObserver, 300);
-              });
-            }, 200);
-          }, 300);
-        } else {
-          // 非视频类型的切换处理
-          // 重置内容字段，避免不同类型间的内容混淆
-          if (oldType !== newType) {
-            form.content = '';
-          }
-          
-          if (newType === 'quiz') {
-            initQuizData();
-          } else if (newType === 'assignment') {
-            initAssignmentData();
-          }
-          
-          // 延迟结束加载状态
-          setTimeout(() => {
-            form.isTypeChanging = false;
-            
-            // 再次等待DOM更新完成
-            nextTick().then(() => {
-              // 重新设置ResizeObserver
-              setupResizeObserver();
-            });
-          }, 200);
+        // 如果类型不同且不是切换到文件类型，重置内容字段
+        if (oldType !== newType && newType !== 'file') {
+          form.content = '';
         }
+        
+        // 如果切换到文件类型，但没有选择过文件，清空文件列表
+        if (newType === 'file' && !form.file_path) {
+          fileList.value = [];
+          selectedFile.value = null;
+        }
+        
+        // 延迟结束加载状态
+        setTimeout(() => {
+          form.isTypeChanging = false;
+          
+          // 再次等待DOM更新完成
+          nextTick().then(() => {
+            // 重新设置ResizeObserver
+            setupResizeObserver();
+          });
+        }, 200);
       } catch (error) {
         console.error('资源类型切换处理错误:', error);
-        // 确保错误情况下也会重置加载状态
         form.isTypeChanging = false;
         
-        // 尝试安全地恢复
+        // 安全恢复
         setTimeout(() => {
           setupResizeObserver();
         }, 500);
@@ -330,6 +229,49 @@ export default {
     watch(() => form.resource_type, (newType, oldType) => {
       handleResourceTypeChange(newType, oldType);
     });
+    
+    // 处理文件选择变化
+    const handleFileChange = (file, fileList) => {
+      selectedFile.value = file.raw;
+      // 选择新文件时重置进度
+      uploadProgress.value = 0;
+    };
+    
+    // 处理文件移除
+    const handleFileRemove = () => {
+      selectedFile.value = null;
+      form.file_path = '';
+      form.content = '';
+    };
+    
+    // 上传文件
+    const uploadFile = async () => {
+      if (!selectedFile.value) return null;
+      
+      isUploading.value = true;
+      
+      try {
+        const response = await fileAPI.uploadFile(selectedFile.value, (progress) => {
+          uploadProgress.value = progress;
+        });
+        
+        isUploading.value = false;
+        
+        if (response.data.status === 'success') {
+          form.file_path = response.data.file_path;
+          form.content = response.data.file_url; // 存储文件URL作为内容
+          return response.data;
+        } else {
+          ElMessage.error('文件上传失败');
+          return null;
+        }
+      } catch (error) {
+        console.error('文件上传错误:', error);
+        isUploading.value = false;
+        ElMessage.error('文件上传失败: ' + (error.message || '未知错误'));
+        return null;
+      }
+    };
     
     // 设置安全的ResizeObserver
     const setupResizeObserver = () => {
@@ -357,85 +299,24 @@ export default {
       }
     };
     
-    // 表单验证规则
-    const rules = {
-      title: [
-        { required: true, message: '请输入资源标题', trigger: 'blur' },
-        { min: 2, max: 100, message: '长度在2到100个字符之间', trigger: 'blur' }
-      ],
-      description: [
-        { required: true, message: '请输入资源描述', trigger: 'blur' }
-      ],
-      resource_type: [
-        { required: true, message: '请选择资源类型', trigger: 'change' }
-      ],
-      content: [
-        { required: true, message: '请输入资源内容', trigger: 'blur' }
-      ]
-    }
-    
-    // 添加问题
-    const addQuestion = () => {
-      quizQuestions.value.push({
-        question: '',
-        options: ['', ''],
-        answer: 0
-      })
-    }
-    
-    // 移除问题
-    const removeQuestion = (index) => {
-      if (quizQuestions.value.length > 1) {
-        quizQuestions.value.splice(index, 1)
-      } else {
-        ElMessage.warning('至少保留一个问题')
-      }
-    }
-    
-    // 添加选项
-    const addOption = (questionIndex) => {
-      quizQuestions.value[questionIndex].options.push('')
-    }
-    
-    // 移除选项
-    const removeOption = (questionIndex, optionIndex) => {
-      const options = quizQuestions.value[questionIndex].options
-      const answer = quizQuestions.value[questionIndex].answer
-      
-      if (options.length > 2) {
-        options.splice(optionIndex, 1)
-        
-        // 如果删除的是当前答案，重置答案
-        if (optionIndex === answer) {
-          quizQuestions.value[questionIndex].answer = 0
-        } else if (optionIndex < answer) {
-          quizQuestions.value[questionIndex].answer--
-        }
-      } else {
-        ElMessage.warning('至少保留两个选项')
-      }
-    }
-    
-    // 提交表单前的数据处理
-    const prepareFormData = () => {
-      if (form.resource_type === 'quiz') {
-        form.content = JSON.stringify({
-          questions: quizQuestions.value
-        })
-      } else if (form.resource_type === 'assignment') {
-        form.content = JSON.stringify(assignmentData)
-      }
-    }
-    
     // 提交表单
     const submitForm = async () => {
-      if (!formRef.value) return
+      if (!formRef.value) return;
       
       try {
-        await formRef.value.validate()
+        await formRef.value.validate();
         
-        // 准备表单数据
-        prepareFormData()
+        submitting.value = true;
+        
+        // 如果是文件类型且有新文件选择，先上传文件
+        let uploadResult = null;
+        if (form.resource_type === 'file' && selectedFile.value) {
+          uploadResult = await uploadFile();
+          if (!uploadResult) {
+            submitting.value = false;
+            return;
+          }
+        }
         
         // 发送表单数据到父组件
         emit('submit', {
@@ -445,35 +326,32 @@ export default {
           description: form.description,
           resource_type: form.resource_type,
           content: form.content,
+          file_path: form.file_path,
           order: form.order
-        })
+        });
+        
+        submitting.value = false;
       } catch (error) {
-        ElMessage.error('表单验证失败，请检查输入')
+        submitting.value = false;
+        ElMessage.error('表单验证失败，请检查输入');
       }
-    }
+    };
     
     // 重置表单
     const resetForm = () => {
       if (formRef.value) {
-        formRef.value.resetFields()
+        formRef.value.resetFields();
       }
       
-      if (form.resource_type === 'quiz') {
-        initQuizData()
-      } else if (form.resource_type === 'assignment') {
-        initAssignmentData()
+      if (form.resource_type === 'file') {
+        fileList.value = [];
+        selectedFile.value = null;
+        form.file_path = '';
       }
-    }
+    };
     
     // 组件挂载时设置ResizeObserver
     onMounted(() => {
-      // 初始化资源类型数据
-      if (props.resource.resource_type === 'quiz') {
-        initQuizData()
-      } else if (props.resource.resource_type === 'assignment') {
-        initAssignmentData()
-      }
-      
       setupResizeObserver();
     });
     
@@ -486,14 +364,13 @@ export default {
       formRef,
       form,
       rules,
-      quizQuestions,
-      assignmentData,
+      fileList,
+      submitting,
+      uploadProgress,
+      handleFileChange,
+      handleFileRemove,
       submitForm,
       resetForm,
-      addQuestion,
-      removeQuestion,
-      addOption,
-      removeOption,
       cleanupResizeObserver // 导出清理函数以便在父组件使用
     }
   }
@@ -507,32 +384,14 @@ export default {
   position: relative;
 }
 
-.quiz-question {
-  margin-bottom: 20px;
-  /* 添加稳定的布局属性 */
-  position: relative;
+.resource-file-upload {
   width: 100%;
+  margin-bottom: 20px;
 }
 
-.question-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.question-options {
-  margin-bottom: 15px;
-}
-
-.option-item {
-  margin-bottom: 10px;
-}
-
-.add-question {
-  margin: 20px 0;
-  display: flex;
-  justify-content: center;
+.el-upload__tip {
+  color: #909399;
+  margin-top: 5px;
 }
 
 .form-content-area {
