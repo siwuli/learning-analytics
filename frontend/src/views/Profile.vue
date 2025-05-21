@@ -27,6 +27,12 @@
               >
                 <el-button size="small">更换头像</el-button>
               </el-upload>
+              <el-progress 
+                v-if="uploadProgress > 0 && uploadProgress < 100" 
+                :percentage="uploadProgress" 
+                :format="percentFormat"
+                style="margin-top: 10px;"
+              ></el-progress>
             </div>
           </div>
           <div class="profile-info">
@@ -133,6 +139,7 @@ export default {
     const changingPassword = ref(false)
     const profileFormRef = ref(null)
     const passwordFormRef = ref(null)
+    const uploadProgress = ref(0)
     
     // 获取用户信息
     const user = computed(() => store.state.auth.user || {})
@@ -194,6 +201,11 @@ export default {
           trigger: 'blur' 
         }
       ]
+    }
+    
+    // 百分比格式化
+    const percentFormat = (percentage) => {
+      return `${percentage}%`
     }
     
     // 初始化表单数据
@@ -265,9 +277,41 @@ export default {
     
     // 处理头像变更
     const handleAvatarChange = (file) => {
-      // 这里应该处理头像上传
-      // 现在只做简单提示
-      ElMessage.info('头像上传功能尚未实现')
+      if (!file) return
+      
+      // 图片类型验证
+      const isImage = file.raw.type.startsWith('image/')
+      if (!isImage) {
+        ElMessage.error('只能上传图片文件!')
+        return
+      }
+      
+      // 图片大小验证 (限制为5MB)
+      const isLt5M = file.size / 1024 / 1024 < 5
+      if (!isLt5M) {
+        ElMessage.error('图片大小不能超过5MB!')
+        return
+      }
+      
+      // 上传头像
+      uploadProgress.value = 0
+      
+      store.dispatch('auth/uploadUserAvatar', {
+        userId: user.value.id,
+        avatarFile: file.raw,
+        onProgress: (percent) => {
+          uploadProgress.value = percent
+        }
+      }).then(() => {
+        ElMessage.success('头像上传成功')
+        // 重置进度条
+        setTimeout(() => {
+          uploadProgress.value = 0
+        }, 1000)
+      }).catch(error => {
+        ElMessage.error('头像上传失败: ' + (error.message || '未知错误'))
+        uploadProgress.value = 0
+      })
     }
     
     // 格式化日期
@@ -298,6 +342,8 @@ export default {
       passwordRules,
       profileFormRef,
       passwordFormRef,
+      uploadProgress,
+      percentFormat,
       saveProfile,
       changePassword,
       resetForm,

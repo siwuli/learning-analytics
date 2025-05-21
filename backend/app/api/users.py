@@ -1,7 +1,17 @@
-from flask import jsonify, request
+from flask import jsonify, request, current_app
 from . import api_bp
 from ..models import User
 from .. import db
+import os
+from werkzeug.utils import secure_filename
+import uuid
+
+# 允许的图片格式
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @api_bp.route('/users', methods=['GET'])
 def get_users():
@@ -30,7 +40,8 @@ def create_user():
         username=data.get('username'),
         email=data.get('email'),
         password_hash='暂时明文密码',  # 实际应用中需要哈希处理
-        role=data.get('role', 'student')
+        role=data.get('role', 'student'),
+        bio=data.get('bio', '')
     )
     db.session.add(new_user)
     db.session.commit()
@@ -42,7 +53,7 @@ def create_user():
 
 @api_bp.route('/users/<int:user_id>', methods=['PUT'])
 def update_user(user_id):
-    """更新用户"""
+    """更新用户信息"""
     user = User.query.get_or_404(user_id)
     data = request.json
     
@@ -52,6 +63,8 @@ def update_user(user_id):
         user.email = data['email']
     if 'role' in data:
         user.role = data['role']
+    if 'bio' in data:
+        user.bio = data['bio']
     
     db.session.commit()
     return jsonify({
@@ -59,6 +72,57 @@ def update_user(user_id):
         'message': '用户更新成功',
         'user': user.to_dict()
     })
+
+@api_bp.route('/users/<int:user_id>/avatar', methods=['POST'])
+def upload_avatar(user_id):
+    """上传用户头像"""
+    user = User.query.get_or_404(user_id)
+    
+    # 检查是否有文件上传
+    if 'avatar' not in request.files:
+        return jsonify({
+            'status': 'error',
+            'message': '没有上传文件'
+        }), 400
+    
+    file = request.files['avatar']
+    
+    # 如果用户未选择文件，浏览器也会提交一个没有文件名的空文件
+    if file.filename == '':
+        return jsonify({
+            'status': 'error',
+            'message': '未选择文件'
+        }), 400
+    
+    if file and allowed_file(file.filename):
+        # 创建唯一文件名
+        filename = secure_filename(file.filename)
+        filename = f"{uuid.uuid4()}_{filename}"
+        
+        # 确保上传目录存在
+        upload_folder = os.path.join(current_app.static_folder, 'uploads', 'avatars')
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        # 保存文件
+        file_path = os.path.join(upload_folder, filename)
+        file.save(file_path)
+        
+        # 更新用户头像路径
+        avatar_url = f"/static/uploads/avatars/{filename}"
+        user.avatar = avatar_url
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': '头像上传成功',
+            'avatar_url': avatar_url,
+            'user': user.to_dict()
+        })
+    
+    return jsonify({
+        'status': 'error',
+        'message': '不支持的文件类型'
+    }), 400
 
 @api_bp.route('/users/<int:user_id>', methods=['DELETE'])
 def delete_user(user_id):

@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { authAPI } from '../../services/api'
+import { authAPI, userAPI } from '../../services/api'
 
 // 初始状态
 const state = {
@@ -108,7 +108,7 @@ const actions = {
   // 更新用户资料
   async updateUserProfile({ commit, dispatch }, { userId, userData }) {
     try {
-      const response = await axios.put(`/users/${userId}`, userData)
+      const response = await userAPI.updateUser(userId, userData)
       
       // 更新本地存储的用户信息
       const updatedUser = response.data.user
@@ -118,6 +118,23 @@ const actions = {
       return response
     } catch (error) {
       dispatch('setError', error.response?.data?.message || '更新用户资料失败', { root: true })
+      throw error
+    }
+  },
+  
+  // 上传用户头像
+  async uploadUserAvatar({ commit, dispatch }, { userId, avatarFile, onProgress }) {
+    try {
+      const response = await userAPI.uploadAvatar(userId, avatarFile, onProgress)
+      
+      // 更新本地存储的用户信息
+      const updatedUser = response.data.user
+      localStorage.setItem('user', JSON.stringify(updatedUser))
+      commit('SET_USER', updatedUser)
+      
+      return response
+    } catch (error) {
+      dispatch('setError', error.response?.data?.message || '上传头像失败', { root: true })
       throw error
     }
   }

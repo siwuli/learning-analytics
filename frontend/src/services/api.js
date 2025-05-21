@@ -33,6 +33,23 @@ export const userAPI = {
     return axios.put(`/users/${id}`, userData);
   },
   
+  uploadAvatar(userId, file, onProgress) {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    
+    return axios.post(`/users/${userId}/avatar`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      onUploadProgress: progressEvent => {
+        if (onProgress) {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(percentCompleted);
+        }
+      }
+    });
+  },
+  
   deleteUser(id) {
     return axios.delete(`/users/${id}`);
   }
