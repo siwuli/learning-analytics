@@ -37,6 +37,7 @@
           </div>
           <div class="profile-info">
             <h2>{{ user.username }}</h2>
+            <p>账号: {{ user.account }}</p>
             <p>{{ roleText }}</p>
             <p>邮箱: {{ user.email }}</p>
             <p>注册时间: {{ formatDate(user.created_at) }}</p>
@@ -53,6 +54,11 @@
             :rules="profileRules"
             label-width="100px"
           >
+            <el-form-item label="账号">
+              <el-input v-model="user.account" disabled></el-input>
+              <div class="form-tip">账号不可修改</div>
+            </el-form-item>
+            
             <el-form-item label="用户名" prop="username">
               <el-input v-model="profileForm.username" placeholder="请输入用户名"></el-input>
             </el-form-item>
@@ -430,5 +436,11 @@ export default {
 .profile-edit h3,
 .password-change h3 {
   margin-bottom: 20px;
+}
+
+.form-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 5px;
 }
 </style> 

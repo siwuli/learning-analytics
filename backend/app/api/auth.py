@@ -16,7 +16,7 @@ def register():
     data = request.json
     
     # 验证必填字段
-    if not all(k in data for k in ('username', 'email', 'password', 'role')):
+    if not all(k in data for k in ('account', 'username', 'email', 'password', 'role')):
         return jsonify({
             'status': 'error',
             'message': '缺少必要的注册信息'
@@ -29,11 +29,11 @@ def register():
             'message': '无效的用户角色'
         }), 400
     
-    # 检查用户名是否已存在
-    if User.query.filter_by(username=data['username']).first():
+    # 检查账号是否已存在
+    if User.query.filter_by(account=data['account']).first():
         return jsonify({
             'status': 'error',
-            'message': '用户名已被占用'
+            'message': '账号已被占用'
         }), 400
     
     # 检查邮箱是否已存在
@@ -45,6 +45,7 @@ def register():
     
     # 创建新用户
     new_user = User(
+        account=data['account'],
         username=data['username'],
         email=data['email'],
         password_hash=generate_password_hash(data['password']),
@@ -66,26 +67,26 @@ def login():
     data = request.json
     
     # 验证必填字段
-    if not all(k in data for k in ('username', 'password')):
+    if not all(k in data for k in ('account', 'password')):
         return jsonify({
             'status': 'error',
-            'message': '用户名和密码不能为空'
+            'message': '账号和密码不能为空'
         }), 400
     
     # 查找用户
-    user = User.query.filter_by(username=data['username']).first()
+    user = User.query.filter_by(account=data['account']).first()
     
     # 验证用户存在性和密码
     if not user or not check_password_hash(user.password_hash, data['password']):
         return jsonify({
             'status': 'error',
-            'message': '用户名或密码错误'
+            'message': '账号或密码错误'
         }), 401
     
     # 生成Token
     token_payload = {
         'user_id': user.id,
-        'username': user.username,
+        'account': user.account,
         'role': user.role,
         'exp': datetime.utcnow() + timedelta(days=1)
     }

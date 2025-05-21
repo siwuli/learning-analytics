@@ -57,6 +57,7 @@ def update_user(user_id):
     user = User.query.get_or_404(user_id)
     data = request.json
     
+    # 只允许修改用户名、邮箱、角色和个人简介，不允许修改账号
     if 'username' in data:
         user.username = data['username']
     if 'email' in data:

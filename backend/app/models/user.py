@@ -6,7 +6,8 @@ class User(db.Model):
     __tablename__ = 'users'
 
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    account = db.Column(db.String(64), unique=True, nullable=False, index=True)  # 账号，用于登录
+    username = db.Column(db.String(64), nullable=False, index=True)  # 用户名，用于显示
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(128), nullable=False)
     role = db.Column(db.String(20), default='student')  # student, teacher, admin
@@ -35,6 +36,7 @@ class User(db.Model):
                 
         return {
             'id': self.id,
+            'account': self.account,
             'username': self.username,
             'email': self.email,
             'role': self.role,

@@ -9,8 +9,8 @@
       </template>
       
       <el-form :model="loginForm" ref="loginFormRef" :rules="rules" label-position="top">
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="loginForm.username" placeholder="请输入用户名"></el-input>
+        <el-form-item label="账号" prop="account">
+          <el-input v-model="loginForm.account" placeholder="请输入账号"></el-input>
         </el-form-item>
         
         <el-form-item label="密码" prop="password">
@@ -43,14 +43,14 @@ export default {
     const loginFormRef = ref(null)
     
     const loginForm = reactive({
-      username: '',
+      account: '',
       password: ''
     })
     
     const rules = {
-      username: [
-        { required: true, message: '请输入用户名', trigger: 'blur' },
-        { min: 3, max: 20, message: '用户名长度在3到20个字符之间', trigger: 'blur' }
+      account: [
+        { required: true, message: '请输入账号', trigger: 'blur' },
+        { min: 3, max: 20, message: '账号长度在3到20个字符之间', trigger: 'blur' }
       ],
       password: [
         { required: true, message: '请输入密码', trigger: 'blur' },
@@ -69,7 +69,7 @@ export default {
             ElMessage.success('登录成功')
             router.push('/dashboard')
           } catch (error) {
-            ElMessage.error(error.message || '登录失败，请检查您的用户名和密码')
+            ElMessage.error(error.message || '登录失败，请检查您的账号和密码')
           } finally {
             store.dispatch('setLoading', false)
           }

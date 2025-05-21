@@ -9,8 +9,12 @@
       </template>
       
       <el-form :model="registerForm" ref="registerFormRef" :rules="rules" label-position="top">
+        <el-form-item label="账号" prop="account">
+          <el-input v-model="registerForm.account" placeholder="请输入账号（用于登录）"></el-input>
+        </el-form-item>
+        
         <el-form-item label="用户名" prop="username">
-          <el-input v-model="registerForm.username" placeholder="请输入用户名"></el-input>
+          <el-input v-model="registerForm.username" placeholder="请输入用户名（用于显示）"></el-input>
         </el-form-item>
         
         <el-form-item label="邮箱" prop="email">
@@ -58,6 +62,7 @@ export default {
     const registerFormRef = ref(null)
     
     const registerForm = reactive({
+      account: '',
       username: '',
       email: '',
       password: '',
@@ -66,9 +71,13 @@ export default {
     })
     
     const rules = {
+      account: [
+        { required: true, message: '请输入账号', trigger: 'blur' },
+        { min: 3, max: 20, message: '账号长度在3到20个字符之间', trigger: 'blur' }
+      ],
       username: [
         { required: true, message: '请输入用户名', trigger: 'blur' },
-        { min: 3, max: 20, message: '用户名长度在3到20个字符之间', trigger: 'blur' }
+        { min: 2, max: 20, message: '用户名长度在2到20个字符之间', trigger: 'blur' }
       ],
       email: [
         { required: true, message: '请输入邮箱', trigger: 'blur' },
@@ -106,6 +115,7 @@ export default {
             
             // 准备注册数据，不包含确认密码字段
             const userData = {
+              account: registerForm.account,
               username: registerForm.username,
               email: registerForm.email,
               password: registerForm.password,
