@@ -37,6 +37,52 @@ def create_test_activities():
         total_activities = 0
         now = datetime.utcnow()
         
+        # 为每个课程创建一些资源
+        course_resources = {}
+        for course in courses:
+            # 检查该课程是否有对应的章节
+            sections = CourseSection.query.filter_by(course_id=course.id).all()
+            
+            # 如果没有章节，创建一个默认章节
+            if not sections:
+                print(f"为课程 {course.title} 创建默认章节和资源")
+                default_section = CourseSection(
+                    course_id=course.id,
+                    title=f"{course.title} - 默认章节",
+                    description="自动创建的默认章节",
+                    order=1
+                )
+                db.session.add(default_section)
+                db.session.flush()  # 获取ID
+                
+                # 为默认章节创建几个资源
+                for i, res_type in enumerate(['document', 'video', 'quiz', 'assignment']):
+                    resource = CourseResource(
+                        section_id=default_section.id,
+                        title=f"{res_type.capitalize()} 资源 {i+1}",
+                        description=f"{course.title} 的 {res_type} 资源",
+                        resource_type=res_type,
+                        content=f"测试内容 {i+1}",
+                        order=i+1
+                    )
+                    db.session.add(resource)
+                
+                db.session.commit()
+                
+                # 重新获取章节
+                sections = [default_section]
+            
+            # 获取该课程所有章节下的资源
+            course_res = []
+            for section in sections:
+                section_resources = CourseResource.query.filter_by(section_id=section.id).all()
+                course_res.extend(section_resources)
+            
+            if course_res:
+                course_resources[course.id] = course_res
+            else:
+                print(f"警告: 课程 {course.title} (ID: {course.id}) 没有找到资源")
+        
         for student in students:
             # 确定该学生已注册的课程
             enrolled_courses = student.enrolled_courses.all()
@@ -51,15 +97,12 @@ def create_test_activities():
             
             # 为每个已注册的课程创建活动
             for course in enrolled_courses:
-                # 获取该课程的资源
-                course_resources = []
-                for resource in resources:
-                    section = CourseSection.query.get(resource.section_id)
-                    if section and section.course_id == course.id:
-                        course_resources.append(resource)
-                
-                if not course_resources:
+                # 跳过没有资源的课程
+                if course.id not in course_resources or not course_resources[course.id]:
+                    print(f"跳过没有资源的课程: {course.title} (ID: {course.id})")
                     continue
+                
+                course_resources_list = course_resources[course.id]
                 
                 # 为每个学生在每个课程中创建3-10个活动
                 activity_count = random.randint(3, 10)
@@ -69,7 +112,7 @@ def create_test_activities():
                     activity_type = random.choice(activity_types)
                     
                     # 随机选择资源
-                    resource = random.choice(course_resources)
+                    resource = random.choice(course_resources_list)
                     
                     # 创建随机时间(过去30天内)
                     random_days = random.randint(0, 30)
