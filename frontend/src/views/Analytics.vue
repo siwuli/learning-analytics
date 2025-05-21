@@ -404,11 +404,18 @@ export default {
 
     const loadCourses = async () => {
       try {
-        const response = await store.dispatch('courses/fetchCourses')
-        courses.value = response
+        let response;
+        if (isTeacher.value) {
+          // 对于教师角色，获取教授的课程
+          response = await store.dispatch('courses/fetchTeachingCourses');
+        } else {
+          // 对于学生角色，获取已选课程
+          response = await store.dispatch('courses/fetchEnrolledCourses');
+        }
+        courses.value = response;
       } catch (error) {
-        ElMessage.error('获取课程列表失败')
-        console.error(error)
+        ElMessage.error('获取课程列表失败');
+        console.error(error);
       }
     }
 
@@ -962,21 +969,26 @@ export default {
     // 根据激活的标签页加载相应数据
     watch(activeTab, (newTab) => {
       if (newTab === 'system') {
-        loadSystemOverview()
+        loadSystemOverview();
       } else if (newTab === 'personal' && !isTeacher.value) {
-        loadStudentLearningAnalytics()
+        loadStudentLearningAnalytics();
       } else if (newTab === 'students' || newTab === 'courses') {
-        loadCourses()
+        // 对于教师角色，在学生分析和课程分析标签页立即加载课程列表
+        if (isTeacher.value) {
+          loadCourses();
+        }
       }
-    })
+    });
     
     onMounted(() => {
-      loadSystemOverview()
+      loadSystemOverview();
       if (!isTeacher.value) {
-        loadStudentLearningAnalytics()
+        loadStudentLearningAnalytics();
+      } else {
+        // 如果是教师，在初始化时就加载课程列表
+        loadCourses();
       }
-      loadCourses()
-    })
+    });
     
     return {
       activeTab,

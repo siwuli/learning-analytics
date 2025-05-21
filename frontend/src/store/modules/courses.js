@@ -141,14 +141,25 @@ const actions = {
       commit('SET_LOADING', true);
       const response = await courseAPI.getCourses();
       const user = rootState.auth.user;
+      
+      if (!response.data || !response.data.courses || !user) {
+        commit('SET_ERROR', '无法获取课程或用户数据');
+        commit('SET_LOADING', false);
+        return [];
+      }
+      
       // 筛选当前用户作为教师的课程
       const teachingCourses = response.data.courses.filter(course => 
         course.instructor_id === user.id
       );
+      
+      console.log('教师课程列表:', teachingCourses); // 添加调试日志
+      
       commit('SET_TEACHING_COURSES', teachingCourses);
       commit('SET_LOADING', false);
       return teachingCourses;
     } catch (error) {
+      console.error('获取教学课程失败:', error);
       commit('SET_ERROR', error.response?.data?.message || '获取教学课程失败');
       commit('SET_LOADING', false);
       throw error;
