@@ -151,7 +151,28 @@ export default {
     
     // 用户头像
     const userAvatar = computed(() => {
-      return user.value.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
+      // 检查是否有有效的头像URL
+      if (user.value && user.value.avatar) {
+        // 如果是以http开头的完整URL，直接使用
+        if (user.value.avatar.startsWith('http')) {
+          return user.value.avatar;
+        }
+        
+        // 处理相对路径
+        if (user.value.avatar.startsWith('/')) {
+          // 从环境变量获取API基础URL，如果没有则使用默认
+          const baseUrl = import.meta.env?.VITE_APP_API_URL || 
+                         process.env.VUE_APP_API_URL || 
+                         'http://localhost:5000';
+          return baseUrl + user.value.avatar;
+        }
+        
+        // 如果只是文件名，添加完整路径
+        return `http://localhost:5000/api/static/uploads/avatars/${user.value.avatar}`;
+      }
+      
+      // 无头像时使用默认头像
+      return 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png';
     })
     
     // 个人资料表单

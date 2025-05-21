@@ -107,8 +107,8 @@ def upload_avatar(user_id):
         file_path = os.path.join(upload_folder, filename)
         file.save(file_path)
         
-        # 更新用户头像路径
-        avatar_url = f"/static/uploads/avatars/{filename}"
+        # 更新用户头像路径 - 修改URL格式以确保前端可以访问
+        avatar_url = f"/api/static/uploads/avatars/{filename}"
         user.avatar = avatar_url
         db.session.commit()
         

@@ -1,7 +1,8 @@
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
+import os
 
 # 初始化扩展
 db = SQLAlchemy()
@@ -28,6 +29,12 @@ def create_app(config_name='default'):
     @app.route('/health')
     def health_check():
         return {'status': 'ok'}
+        
+    # 添加静态文件访问路由，特别是用户头像
+    @app.route('/api/static/uploads/avatars/<filename>')
+    def serve_avatar(filename):
+        upload_folder = os.path.join(app.static_folder, 'uploads', 'avatars')
+        return send_from_directory(upload_folder, filename)
 
     return app
 

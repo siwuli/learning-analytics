@@ -19,8 +19,9 @@ import VChart from 'vue-echarts'
 setupErrorHandler();
 
 // 设置默认axios基础URL
-axios.defaults.baseURL = 'http://localhost:5000/api'
-axios.defaults.withCredentials = true
+const apiBaseUrl = process.env.VUE_APP_API_URL || 'http://localhost:5000';
+axios.defaults.baseURL = `${apiBaseUrl}/api`;
+axios.defaults.withCredentials = true;
 
 // 添加请求拦截器，为每个请求添加token
 axios.interceptors.request.use(

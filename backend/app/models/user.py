@@ -23,12 +23,22 @@ class User(db.Model):
         return f'<User {self.username}>'
 
     def to_dict(self):
+        avatar_url = self.avatar
+        # 如果头像URL存在但不是以http开头，则添加服务器地址前缀
+        if avatar_url and not (avatar_url.startswith('http://') or avatar_url.startswith('https://')):
+            # 确保路径格式正确
+            if not avatar_url.startswith('/'):
+                avatar_url = '/' + avatar_url
+            # 确保路径以/api开头
+            if not avatar_url.startswith('/api'):
+                avatar_url = '/api' + avatar_url
+                
         return {
             'id': self.id,
             'username': self.username,
             'email': self.email,
             'role': self.role,
-            'avatar': self.avatar,
+            'avatar': avatar_url,
             'bio': self.bio,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
