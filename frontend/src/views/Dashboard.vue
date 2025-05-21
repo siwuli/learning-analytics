@@ -211,35 +211,6 @@
             <canvas ref="activityTypeCanvas"></canvas>
           </div>
         </el-card>
-        
-        <el-card class="reminder-card">
-          <template #header>
-            <div class="card-header">
-              <span>待办事项</span>
-            </div>
-          </template>
-          <div v-if="loading" class="loading-container">
-            <el-skeleton :rows="3" animated />
-          </div>
-          <div v-else-if="pendingAssignments.length === 0" class="empty-todos">
-            暂无待办事项
-          </div>
-          <div v-else class="todo-list">
-            <div v-for="assignment in pendingAssignments" :key="assignment.id" class="todo-item">
-              <div class="todo-content">
-                <i class="el-icon-document"></i>
-                {{ assignment.title }}
-              </div>
-              <div v-if="currentUser.role === 'teacher' && assignment.ungraded_count" class="todo-count">
-                {{ assignment.ungraded_count }}个待批改
-              </div>
-              <div class="todo-due">{{ formatDeadline(assignment.deadline) }}</div>
-              <el-button size="small" type="primary" @click="goToAssignment(assignment.course_id, assignment.id)">
-                查看
-              </el-button>
-            </div>
-          </div>
-        </el-card>
       </el-col>
     </el-row>
   </div>
@@ -263,14 +234,13 @@ export default {
     const activityTypeChart = ref(null)
     
     const loading = ref(true)
-    const userData = ref({})
-    const enrolledCourses = ref([])
-    const timeChartData = ref([])
-    const activityTypeData = ref({})
-    const pendingAssignments = ref([])
-    const studentLearningData = ref({})
-    const systemData = ref({})
-    const teacherCourseProgress = ref({})
+const userData = ref({})
+const enrolledCourses = ref([])
+const timeChartData = ref([])
+const activityTypeData = ref({})
+const studentLearningData = ref({})
+const systemData = ref({})
+const teacherCourseProgress = ref({})
     
     // 计算用户ID
     const currentUser = computed(() => store.state.auth.user)
@@ -340,25 +310,7 @@ export default {
       return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
     }
     
-    // 格式化截止日期
-    const formatDeadline = (dateString) => {
-      const now = new Date()
-      const deadline = new Date(dateString)
-      const diffTime = deadline - now
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-      
-      if (diffDays < 0) {
-        return '已逾期'
-      } else if (diffDays === 0) {
-        return '今天截止'
-      } else if (diffDays === 1) {
-        return '明天截止'
-      } else if (diffDays < 7) {
-        return `${diffDays}天后截止`
-      } else {
-        return formatDate(dateString) + ' 截止'
-      }
-    }
+    
     
     // 获取活动类型对应的图标类型
     const getActivityType = (activityType) => {
@@ -407,10 +359,7 @@ export default {
       router.push(`/courses/${courseId}`)
     }
     
-    // 导航到作业详情
-    const goToAssignment = (courseId, assignmentId) => {
-      router.push(`/courses/${courseId}/assignments/${assignmentId}`)
-    }
+    
     
     // 创建学习时间趋势图表
     const createTimeChart = () => {
@@ -571,14 +520,11 @@ export default {
           const response = await analyticsAPI.getStudentLearningAnalytics(currentUser.value.id)
           studentLearningData.value = response.data
           
-          // 设置学习时间趋势数据
-          timeChartData.value = studentLearningData.value.learning_time_trend || []
-          
-          // 设置活动类型分布数据
-          activityTypeData.value = studentLearningData.value.activity_type_distribution || {}
-          
-          // 设置未完成作业
-          pendingAssignments.value = studentLearningData.value.pending_assignments || []
+                // 设置学习时间趋势数据
+      timeChartData.value = studentLearningData.value.learning_time_trend || []
+      
+      // 设置活动类型分布数据
+      activityTypeData.value = studentLearningData.value.activity_type_distribution || {}
         }
       } catch (error) {
         console.error('获取学生学习分析数据失败', error)
@@ -600,53 +546,6 @@ export default {
           
           // 对于教师和管理员，使用活动趋势作为时间图表数据
           timeChartData.value = systemData.value.activity_trend || []
-          
-          // 获取教师负责的课程的待批改作业作为待办事项
-          if (currentUser.value.role === 'teacher') {
-            // 获取教师的课程
-            const coursesResponse = await courseAPI.getCourses()
-            const teacherCourses = coursesResponse.data.courses.filter(
-              course => course.instructor_id === currentUser.value.id
-            )
-            
-            // 获取每个课程的待批改作业
-            const pendingAssignmentsList = []
-            for (const course of teacherCourses) {
-              try {
-                const assignmentsResponse = await courseAPI.getCourseAssignments(course.id)
-                const assignments = assignmentsResponse.data.assignments || []
-                
-                // 对每个作业，检查是否有未批改的提交
-                for (const assignment of assignments) {
-                  try {
-                    const submissionsResponse = await courseAPI.getAssignmentSubmissions(course.id, assignment.id)
-                    const submissions = submissionsResponse.data.submissions || []
-                    
-                    // 过滤出未批改的提交
-                    const ungradedSubmissions = submissions.filter(sub => !sub.is_graded)
-                    
-                    if (ungradedSubmissions.length > 0) {
-                      pendingAssignmentsList.push({
-                        id: assignment.id,
-                        title: `批改《${course.title}》的作业：${assignment.title}`,
-                        course_id: course.id,
-                        ungraded_count: ungradedSubmissions.length,
-                        deadline: assignment.deadline
-                      })
-                    }
-                  } catch (error) {
-                    console.error(`获取课程 ${course.id} 作业 ${assignment.id} 的提交失败`, error)
-                  }
-                }
-              } catch (error) {
-                console.error(`获取课程 ${course.id} 的作业失败`, error)
-              }
-            }
-            
-            // 按未批改数量降序排序
-            pendingAssignmentsList.sort((a, b) => b.ungraded_count - a.ungraded_count)
-            pendingAssignments.value = pendingAssignmentsList
-          }
         } catch (error) {
           console.error('获取系统概览数据失败', error)
         }
@@ -800,18 +699,15 @@ export default {
       activityTypeCanvas,
       timeChartData,
       activityTypeData,
-      pendingAssignments,
       currentUser,
       teacherCourseProgress,
       formatTime,
       formatDate,
-      formatDeadline,
       getActivityType,
       getActivityContent,
       getCourseProgress,
       goToCourses,
       goToCourseDetail,
-      goToAssignment,
       getStudentCount
     }
   }
@@ -886,13 +782,13 @@ export default {
   margin-top: 20px;
 }
 
-.course-item, .todo-item {
+.course-item {
   margin-bottom: 15px;
   padding-bottom: 15px;
   border-bottom: 1px solid #ebeef5;
 }
 
-.course-item:last-child, .todo-item:last-child {
+.course-item:last-child {
   border-bottom: none;
 }
 
@@ -901,36 +797,10 @@ export default {
   margin-bottom: 5px;
 }
 
-.todo-content {
-  display: flex;
-  align-items: center;
-  margin-bottom: 5px;
-}
-
-.todo-content i {
-  margin-right: 8px;
-}
-
-.todo-due {
-  font-size: 12px;
-  color: #909399;
-  margin-bottom: 8px;
-}
-
-.todo-count {
-  font-size: 12px;
-  color: #F56C6C;
-  margin-bottom: 5px;
-}
-
 .activity-count {
   font-size: 14px;
   color: #606266;
   margin-bottom: 8px;
-}
-
-.reminder-card {
-  margin-top: 20px;
 }
 
 .admin-stats-card {
@@ -953,7 +823,7 @@ export default {
   border-bottom: none;
 }
 
-.empty-courses, .empty-todos, .empty-activities {
+.empty-courses, .empty-activities {
   color: #909399;
   text-align: center;
   padding: 20px 0;
@@ -961,11 +831,6 @@ export default {
 
 .loading-container {
   padding: 10px;
-}
-
-.todo-list {
-  max-height: 250px;
-  overflow-y: auto;
 }
 
 .course-students {
