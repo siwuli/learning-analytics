@@ -39,6 +39,10 @@ const actions = {
       const token = response.data.token
       const user = response.data.user
       
+      console.log('登录成功，用户信息:', user)
+      console.log('用户角色:', user.role)
+      console.log('设置token:', token ? (token.substring(0, 10) + '...') : 'null')
+      
       localStorage.setItem('token', token)
       localStorage.setItem('user', JSON.stringify(user))
       
@@ -47,6 +51,7 @@ const actions = {
       
       return response
     } catch (error) {
+      console.error('登录失败:', error)
       dispatch('setError', error.response?.data?.message || '登录失败', { root: true })
       throw error
     }

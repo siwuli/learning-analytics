@@ -354,4 +354,80 @@ export const gradeAPI = {
   getUserGrades(userId) {
     return axios.get(`/users/${userId}/grades`);
   }
+};
+
+// 管理员相关API
+export const adminAPI = {
+  // 系统概览
+  getSystemOverview() {
+    const token = localStorage.getItem('token');
+    console.log('获取系统概览，URL: /admin/overview');
+    console.log('使用token:', token ? token.substring(0, 10) + '...' : 'null');
+    return axios.get('/admin/overview');
+  },
+  
+  // 用户管理
+  getUsers(page = 1, perPage = 10, role = null) {
+    let url = `/admin/users?page=${page}&per_page=${perPage}`;
+    if (role) {
+      url += `&role=${role}`;
+    }
+    const token = localStorage.getItem('token');
+    console.log('获取用户列表，URL:', url);
+    console.log('使用token:', token ? token.substring(0, 10) + '...' : 'null');
+    return axios.get(url);
+  },
+  
+  getUserDetail(userId) {
+    return axios.get(`/admin/users/${userId}`);
+  },
+  
+  createUser(userData) {
+    return axios.post('/admin/users', userData);
+  },
+  
+  updateUser(userId, userData) {
+    return axios.put(`/admin/users/${userId}`, userData);
+  },
+  
+  deleteUser(userId) {
+    return axios.delete(`/admin/users/${userId}`);
+  },
+  
+  // 课程管理
+  getCourses(page = 1, perPage = 10, status = null) {
+    let url = `/admin/courses?page=${page}&per_page=${perPage}`;
+    if (status) {
+      url += `&status=${status}`;
+    }
+    return axios.get(url);
+  },
+  
+  getCourseDetail(courseId) {
+    return axios.get(`/admin/courses/${courseId}`);
+  },
+  
+  createCourse(courseData) {
+    return axios.post('/admin/courses', courseData);
+  },
+  
+  updateCourse(courseId, courseData) {
+    return axios.put(`/admin/courses/${courseId}`, courseData);
+  },
+  
+  deleteCourse(courseId) {
+    return axios.delete(`/admin/courses/${courseId}`);
+  },
+  
+  getCourseStudents(courseId) {
+    return axios.get(`/admin/courses/${courseId}/students`);
+  },
+  
+  addStudentToCourse(courseId, studentId) {
+    return axios.post(`/admin/courses/${courseId}/students`, { student_id: studentId });
+  },
+  
+  removeStudentFromCourse(courseId, studentId) {
+    return axios.delete(`/admin/courses/${courseId}/students/${studentId}`);
+  }
 }; 

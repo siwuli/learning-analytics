@@ -28,11 +28,16 @@ axios.interceptors.request.use(
   config => {
     const token = store.state.auth.token
     if (token) {
+      console.log(`请求: ${config.method.toUpperCase()} ${config.url}`)
+      console.log('使用token:', token.substring(0, 10) + '...')
       config.headers.Authorization = `Bearer ${token}`
+    } else {
+      console.warn(`请求: ${config.method.toUpperCase()} ${config.url} - 无token`)
     }
     return config
   },
   error => {
+    console.error('请求错误:', error)
     return Promise.reject(error)
   }
 )
@@ -43,6 +48,17 @@ axios.interceptors.response.use(
   error => {
     if (error.response && error.response.status === 401) {
       // 如果接收到401响应，则用户未授权
+      console.error(`收到401错误: ${error.config.url}`, error.response.data);
+      console.log('当前页面路径:', window.location.pathname);
+      
+      // 增加调试判断，避免在管理员界面自动登出
+      if (window.location.pathname.includes('/admin')) {
+        console.warn('管理员界面遇到401错误，但不立即登出');
+        return Promise.reject(error);
+      }
+      
+      // 其他情况正常登出
+      console.log('执行登出操作...');
       store.dispatch('auth/logout').then(() => {
         router.push('/login')
       })

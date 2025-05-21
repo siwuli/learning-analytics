@@ -23,6 +23,10 @@
             <i class="el-icon-s-data"></i>
             <span>数据分析</span>
           </el-menu-item>
+          <el-menu-item index="/admin" v-if="isAdmin">
+            <i class="el-icon-setting"></i>
+            <span>管理控制台</span>
+          </el-menu-item>
           <el-menu-item index="/profile">
             <i class="el-icon-user"></i>
             <span>个人资料</span>
@@ -73,6 +77,8 @@ export default {
     const isLoggedIn = computed(() => store.getters['auth/isLoggedIn'])
     const currentUser = computed(() => store.state.auth.user || {})
     const isStudent = computed(() => currentUser.value.role === 'student')
+    const isTeacher = computed(() => currentUser.value.role === 'teacher')
+    const isAdmin = computed(() => currentUser.value.role === 'admin')
     const avatarUrl = computed(() => {
       // 检查是否有有效的头像URL
       if (currentUser.value && currentUser.value.avatar) {
@@ -114,6 +120,8 @@ export default {
       isLoggedIn,
       currentUser,
       isStudent,
+      isTeacher,
+      isAdmin,
       avatarUrl,
       handleLogout
     }

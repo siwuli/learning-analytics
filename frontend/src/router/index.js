@@ -12,6 +12,7 @@ const StudentGrades = () => import('../views/StudentGrades.vue')
 const Analytics = () => import('../views/Analytics.vue')
 const Profile = () => import('../views/Profile.vue')
 const NotFound = () => import('../views/NotFound.vue')
+const AdminDashboard = () => import('../views/AdminDashboard.vue')
 
 const routes = [
   {
@@ -73,6 +74,16 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/admin',
+    name: 'AdminDashboard',
+    component: AdminDashboard,
+    meta: {
+      requiresAuth: true,
+      adminOnly: true,
+      title: '管理员控制台'
+    }
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: NotFound
@@ -100,6 +111,11 @@ router.beforeEach((to, from, next) => {
   // 如果用户已登录且尝试访问登录/注册页面，重定向到仪表板
   else if (isLoggedIn && (to.name === 'Login' || to.name === 'Register')) {
     console.log('已登录用户尝试访问登录/注册页面，重定向到仪表板')
+    next({ name: 'Dashboard' })
+  }
+  // 如果路由仅限管理员但用户不是管理员，重定向到仪表板
+  else if (to.matched.some(record => record.meta.adminOnly) && userRole !== 'admin') {
+    console.log('路由仅限管理员但用户不是管理员，重定向到仪表板')
     next({ name: 'Dashboard' })
   }
   // 如果路由仅限教师但用户不是教师，重定向到仪表板
