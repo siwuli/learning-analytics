@@ -225,7 +225,7 @@ def analytics_overview():
     
     activity_trend = [
         {
-            'date': date.isoformat(),
+            'date': str(date),
             'count': count
         }
         for date, count in daily_activities
@@ -293,7 +293,7 @@ def student_learning_analytics(user_id):
     
     learning_time_trend = [
         {
-            'date': date.isoformat(),
+            'date': str(date),
             'duration': duration if duration else 0
         }
         for date, duration in daily_duration

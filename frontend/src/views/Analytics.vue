@@ -360,6 +360,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useStore } from 'vuex'
 import { ElMessage } from 'element-plus'
+import { translateActivityType, getActivityTypeColor } from '../utils/dataMapping'
 
 export default {
   name: 'Analytics',
@@ -500,8 +501,15 @@ export default {
       if (!systemOverview.value?.activityTypeDistribution) return {}
       
       const data = []
+      // 使用翻译函数转换活动类型名称，并应用对应颜色
       Object.entries(systemOverview.value.activityTypeDistribution).forEach(([key, value]) => {
-        data.push({ name: key, value: value })
+        data.push({ 
+          name: translateActivityType(key), 
+          value: value,
+          itemStyle: {
+            color: getActivityTypeColor(key)
+          }
+        })
       })
       
       return {
@@ -681,8 +689,15 @@ export default {
       if (!courseAnalytics.value?.activityTypes) return {}
       
       const data = []
+      // 使用翻译函数转换活动类型名称，并应用对应颜色
       Object.entries(courseAnalytics.value.activityTypes).forEach(([key, value]) => {
-        data.push({ name: key, value: value })
+        data.push({ 
+          name: translateActivityType(key), 
+          value: value,
+          itemStyle: {
+            color: getActivityTypeColor(key)
+          }
+        })
       })
       
       return {
@@ -809,8 +824,15 @@ export default {
       if (!studentLearningAnalytics.value?.activityTypeDistribution) return {}
       
       const data = []
+      // 使用翻译函数转换活动类型名称，并应用对应颜色
       Object.entries(studentLearningAnalytics.value.activityTypeDistribution).forEach(([key, value]) => {
-        data.push({ name: key, value: value })
+        data.push({ 
+          name: translateActivityType(key), 
+          value: value,
+          itemStyle: {
+            color: getActivityTypeColor(key)
+          }
+        })
       })
       
       return {
