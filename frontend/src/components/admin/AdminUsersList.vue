@@ -23,11 +23,6 @@
       style="width: 100%"
     >
       <el-table-column label="ID" prop="id" width="80" />
-      <el-table-column label="头像" width="80">
-        <template #default="scope">
-          <el-avatar :src="scope.row.avatar" :size="40"></el-avatar>
-        </template>
-      </el-table-column>
       <el-table-column label="用户名" prop="username" />
       <el-table-column label="账号" prop="account" />
       <el-table-column label="邮箱" prop="email" />
